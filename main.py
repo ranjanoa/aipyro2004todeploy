@@ -59,6 +59,7 @@ import config
 import database
 import process_model
 import fingerprint_engine
+import formula_processor
 
 # Wrap AI import in try/except so it doesn't crash if you are only testing Fingerprint
 try:
@@ -180,7 +181,16 @@ def background_data_emitter():
                 df = database.get_realtime_data_window(start_time, end_time, tag_list, tag_map)
 
                 if not df.empty:
+                    conf = process_model.load_model_config()
+                    calc_vars_cfg = conf.get('calculated_variables', {})
+                    controls_cfg = conf.get('control_variables', {})
+                    indicators_cfg = conf.get('indicator_variables', {})
                     latest = df.iloc[-1].to_dict()
+
+                    # 🚀 LIVE CALCULATION: Evaluate all formulas for current state
+                    calculated_vals = formula_processor.evaluate_formulas(latest, calc_vars_cfg, controls_cfg, indicators_cfg)
+                    latest.update(calculated_vals)
+
                     # Convert timestamps for JSON serialization
                     if config.TIMESTAMP_COLUMN in latest:
                         latest[config.TIMESTAMP_COLUMN] = str(latest[config.TIMESTAMP_COLUMN])

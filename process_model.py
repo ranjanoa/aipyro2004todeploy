@@ -151,3 +151,31 @@ def build_no_fingerprint_response(current_state):
         "actions": [],
         "debug_message": "No valid historical match found."
     }
+
+# ==============================================================================
+# 4. UTILS & STRATEGY HELPERS
+# ==============================================================================
+def get_optimization_weights():
+    """Returns weights for variable matching (0-10 scale)."""
+    conf = load_model_config()
+    weights = {}
+    for var, data in conf.get('control_variables', {}).items():
+        weights[var] = data.get('priority', 5)
+    return weights
+
+def get_setpoint_tag_map():
+    """Maps Friendly Name -> PLC Write Tag"""
+    conf = load_model_config()
+    mapping = {}
+    for name, data in conf.get('control_variables', {}).items():
+        if data.get('is_setpoint'):
+            mapping[name] = data.get('tag_name', name)
+    return mapping
+
+def get_setpoint_scale_factors():
+    """Returns scaling factors if tags require multiplication/division."""
+    conf = load_model_config()
+    factors = {}
+    for name, data in conf.get('control_variables', {}).items():
+        factors[name] = data.get('scale_factor', 1.0)
+    return factors
