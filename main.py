@@ -321,6 +321,21 @@ def automated_control_loop():
                             recommendation['match_score'] = "MONITOR"
 
                     if current_mode > 0 and recommendation and isinstance(recommendation, dict):
+                        # 🚀 LIVE SETPOINT SYNC: Inject calculated actions (Priority 0)
+                        conf = process_model.load_model_config()
+                        calc_cfg = conf.get('calculated_variables', {})
+                        controls_cfg = conf.get('control_variables', {})
+                        indicators_cfg = conf.get('indicator_variables', {})
+                        
+                        raw_actions = recommendation.get('actions', [])
+                        tag_map = process_model.get_tag_to_name_map()
+                        mapped_state = {tag_map.get(k, k): v for k, v in real_df.iloc[-1].to_dict().items()}
+                        
+                        calc_actions = formula_processor.generate_calculated_actions(
+                            raw_actions, mapped_state, controls_cfg, indicators_cfg, calc_cfg
+                        )
+                        recommendation['actions'].extend(calc_actions)
+
                         score = recommendation.get('match_score', '0')
                         if score == "SAFETY-CLAMP":
                             logger.warning("🛡️ Guardian Blocked Control")

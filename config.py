@@ -37,9 +37,9 @@ OPC_URL = "opc.tcp://localhost:53530/OPCUA/SimulationServer"
 # 2. INFLUXDB SETTINGS
 # ==============================================================================
 DB_URL = "http://localhost:8086"
-DB_TOKEN = "3RLVXp9GFpNSjpmIs00a1or2F1NgtYK2YITt0pk6N8XDE1KJhLH4-c50QJxowYJk0mQGf4MGThB-RilNDnHXxA=="
-DB_ORG = "Innomotics"
-DB_BUCKET = "test"
+DB_TOKEN = "JMX7b7QQW6FqipQI8A4LICEIL2BXU8ymaLFdtkD7btb4nXEywT2Wa_cpBOMOEVtjPMhYm_PiJEFwRsxmjmNT6A=="
+DB_ORG = "MyPlant"
+DB_BUCKET = "cimporAI"
 
 # Measurements (Tables)
 DB_MEASUREMENT = "kiln1"
