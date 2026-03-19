@@ -1,0 +1,2825 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full overflow-hidden">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>INNOMOTICS-AI | Industrial Control (Offline)</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+
+    <script src="/static/lib/chart.js"></script>
+    <script src="/static/lib/chart-adapter.js"></script>
+    <script src="/static/lib/socket.io.js"></script>
+    <script src="/static/lib/plotly.js"></script>
+
+    <style>
+        /* --- BRAND PALETTE DEFINITIONS (LIGHTER VARIATION) --- */
+        :root {
+            /* Lighter Lime Accent */
+            --brand-lime: #ebf552;
+
+            /* Backgrounds */
+            --brand-power-gray: #122a33;
+            --brand-panel-bg: #1a3842;
+
+            --brand-white: #FFFFFF;
+            --brand-border: #2d4a54;
+        }
+
+        /* Standard Application Styles */
+        body {
+            background-color: var(--brand-power-gray);
+            color: var(--brand-white);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        .glass-panel {
+            background: var(--brand-panel-bg);
+            border: 1px solid var(--brand-border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+
+        header.glass-panel {
+            background-color: var(--brand-power-gray);
+            border-bottom: 2px solid var(--brand-lime);
+            color: var(--brand-white);
+            border-radius: 0;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        }
+
+        nav.glass-panel {
+            background-color: var(--brand-power-gray);
+            border-bottom: 1px solid var(--brand-border);
+            border-radius: 0;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+            background: var(--brand-power-gray);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #476570;
+            border-radius: 3px;
+        }
+
+        input[type=number]::-webkit-inner-spin-button {
+            opacity: 0;
+        }
+
+        /* Inputs */
+        .compact-input {
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            height: 24px;
+            background-color: #0e2229;
+            border: 1px solid #476570;
+            color: var(--brand-white);
+            font-weight: 600;
+        }
+
+        .compact-input:focus {
+            border-color: var(--brand-lime);
+            outline: none;
+        }
+
+        select {
+            background-color: #0e2229 !important;
+            color: white !important;
+            border-color: #476570 !important;
+        }
+
+        textarea {
+            background-color: #0e2229 !important;
+            color: white !important;
+        }
+
+        .val-flash {
+            color: var(--brand-lime) !important;
+            background-color: #2d4a54;
+            transition: all 0.2s;
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 50;
+            background: var(--brand-lime);
+            color: var(--brand-power-gray);
+            padding: 8px 4px;
+            border-radius: 0 6px 6px 0;
+            font-size: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .transition-grid {
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* BATCH STYLES */
+        .batch-active {
+            border-left: 4px solid var(--brand-lime) !important;
+            background-color: #234b59 !important;
+        }
+
+        .batch-disabled {
+            opacity: 0.5;
+            cursor: not-allowed !important;
+            pointer-events: none;
+        }
+
+        /* HYBRID TAB STYLES */
+        .conf-bar-bg {
+            background: #2d4a54;
+            height: 12px;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 5px;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .conf-bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease, background-color 0.5s ease;
+        }
+
+        .action-table {
+            width: 100%;
+            font-size: 0.75rem;
+            border-collapse: separate;
+            border-spacing: 0 4px;
+        }
+
+        .action-table th {
+            text-align: left;
+            color: #aabdc4;
+            font-weight: 700;
+            padding: 8px;
+            border-bottom: 2px solid #476570;
+            text-transform: uppercase;
+        }
+
+        .action-table td {
+            padding: 8px;
+            background: #1e404b;
+            border-top: 1px solid #2d4a54;
+            border-bottom: 1px solid #2d4a54;
+            color: white;
+        }
+
+        .action-reason {
+            font-size: 0.65rem;
+            color: #aabdc4;
+            font-style: italic;
+            display: block;
+            margin-top: 2px;
+            font-weight: 600;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--brand-lime);
+            cursor: pointer;
+            margin-top: -6px;
+            border: 2px solid var(--brand-power-gray);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #476570;
+            border-radius: 2px;
+        }
+
+        /* --- COLORS & BUTTONS --- */
+        .bg-ai-cyan {
+            background-color: var(--brand-lime) !important;
+            color: var(--brand-power-gray) !important;
+        }
+
+        .text-ai-cyan {
+            color: var(--brand-lime) !important;
+        }
+
+        /* Headers */
+        .brand-header-bg {
+            background-color: var(--brand-lime) !important;
+            color: var(--brand-power-gray) !important;
+        }
+
+        .brand-sub-header {
+            background-color: #2d4a54 !important;
+            border-bottom: 1px solid #476570;
+        }
+
+        .text-white {
+            color: #ffffff !important;
+        }
+
+        /* Specific Component Overrides */
+        .nav-btn-active {
+            color: var(--brand-lime) !important;
+            border-bottom-color: var(--brand-lime) !important;
+        }
+
+        .nav-btn-inactive {
+            color: #aabdc4 !important;
+            border-bottom-color: transparent !important;
+        }
+
+        .nav-btn-inactive:hover {
+            color: white !important;
+        }
+
+        /* Radio/Checkboxes */
+        input[type="radio"]:checked {
+            background-color: var(--brand-lime);
+            border-color: var(--brand-lime);
+            color: var(--brand-lime);
+        }
+
+        input[type="checkbox"]:checked {
+            background-color: var(--brand-lime);
+            border-color: var(--brand-lime);
+        }
+
+        /* --- CONFIG UI TOGGLE --- */
+        .config-toggle .dot {
+            transform: translateX(1rem);
+        }
+
+        #config-ui-toggle:checked~.dot {
+            transform: translateX(1rem);
+            background-color: var(--brand-lime) !important;
+        }
+
+        #config-ui-toggle:checked~div {
+            background-color: rgba(235, 245, 82, 0.2);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #476570;
+            border-radius: 3px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #ebf552;
+        }
+
+        /* Icon Active Color */
+        .trend-active {
+            color: var(--brand-lime) !important;
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased flex flex-col text-sm bg-[#122a33] text-white">
+
+    <header class="glass-panel border-b-0 px-6 h-[60px] flex items-center justify-between z-20 shrink-0 shadow-md">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3">
+                <img src="/static/logo.jpeg" alt="Logo" class="h-6 w-auto object-contain"
+                    onerror="this.style.display='none'">
+
+                <span class="text-2xl font-black tracking-tighter text-white">INNOMOTICS</span>
+                <span
+                    class="bg-[#ebf552] text-[#122a33] text-[10px] font-bold px-1.5 py-0.5 leading-none rounded-sm uppercase tracking-wide">
+                    HYBRID CONTROL V2.0
+                </span>
+            </div>
+            <div class="h-6 w-px bg-white/20 mx-2"></div>
+            <h1 id="app-title" class="text-lg font-bold text-[#ebf552] tracking-tight">AI-PYRO</h1>
+        </div>
+
+        <div class="flex items-center space-x-6">
+            <div id="original-header-controls" class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2 bg-white/10 px-3 py-1.5 rounded-full border border-white/10">
+                    <div id="socket-status-dot" class="w-2 h-2 rounded-full bg-gray-400"></div>
+                    <span id="socket-status" class="text-xs font-mono font-bold text-white">CONNECTING...</span>
+                </div>
+            </div>
+            <div id="safety-banner"
+                class="hidden bg-red-600 text-white px-4 py-1 rounded shadow flex items-center gap-2 animate-pulse">
+                <span class="font-bold font-mono text-xs">⚠️ GUARDIAN INTERVENTION</span>
+            </div>
+        </div>
+    </header>
+
+    <nav class="glass-panel px-6 h-[45px] flex space-x-6 z-10 shrink-0 items-end overflow-x-auto">
+        <button onclick="switchTab('hybrid')" id="nav-hybrid"
+            class="nav-btn-active py-2.5 px-4 text-sm font-black whitespace-nowrap border-b-4">Hybrid Control</button>
+        <button onclick="switchTab('fingerprint')" id="nav-fingerprint"
+            class="nav-btn-inactive py-2.5 px-2 text-sm font-bold whitespace-nowrap border-b-4">Fingerprint
+            Engine</button>
+        <button onclick="switchTab('mbrl')" id="nav-mbrl"
+            class="nav-btn-inactive py-2.5 px-2 text-sm font-bold whitespace-nowrap border-b-4">AI Neural
+            Network</button>
+        <button onclick="switchTab('simulator')" id="nav-simulator"
+            class="nav-btn-inactive py-2.5 px-2 text-sm font-bold whitespace-nowrap border-b-4">Digital
+            Simulator</button>
+        <button onclick="switchTab('softsensor-sim')" id="nav-softsensor-sim"
+            class="nav-btn-inactive py-2.5 px-2 text-sm font-bold whitespace-nowrap border-b-4">Soft Sensor
+            Simulator</button>
+        <button onclick="switchTab('softsensor')" id="nav-softsensor"
+            class="nav-btn-inactive py-2.5 px-2 text-sm font-bold whitespace-nowrap border-b-4">Soft Sensor</button>
+        <button onclick="switchTab('trends')" id="nav-trends"
+            class="nav-btn-inactive py-2.5 px-2 text-sm font-bold whitespace-nowrap border-b-4">Trend Analysis</button>
+        <button onclick="switchTab('op-summary')" id="nav-op-summary"
+            class="nav-btn-inactive py-2.5 px-2 text-sm font-bold whitespace-nowrap border-b-4">Operator
+            Summary</button>
+        <button onclick="switchTab('config')" id="nav-config"
+            class="nav-btn-inactive py-2.5 px-2 text-sm font-bold whitespace-nowrap border-b-4">Configuration</button>
+    </nav>
+
+    <main class="flex-1 min-h-0 p-4 overflow-hidden relative">
+
+        <div id="panel-hybrid" class="grid grid-cols-12 gap-4 h-full w-full transition-grid">
+            <div class="col-span-3 glass-panel flex flex-col overflow-hidden transition-all duration-300">
+                <div class="p-4 border-b border-[#122a33] brand-header-bg flex justify-between items-center shrink-0">
+                    <h2 class="text-sm font-bold tracking-wider text-[#122a33]">SYSTEM CONTROL</h2>
+                    <div id="hybrid-connection-dot" class="w-2 h-2 rounded-full bg-red-500 border border-[#122a33]">
+                    </div>
+                </div>
+                <div class="p-5 bg-transparent flex-1 overflow-y-auto flex flex-col gap-6">
+                    <div>
+                        <label class="text-xs font-bold text-[#ebf552] uppercase tracking-wider mb-2 block">Control
+                            Strategy</label>
+                        <div class="space-y-2">
+                            <label
+                                class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-white/5 transition-colors border-[#476570] has-[:checked]:border-[#ebf552] has-[:checked]:bg-[#ebf552]/10">
+                                <input type="radio" name="strategy_select" value="AI" checked
+                                    class="accent-[#ebf552] mr-3 w-4 h-4">
+                                <div>
+                                    <div class="font-bold text-white text-sm">Neural Network (SAC)</div>
+                                    <div class="text-[10px] text-gray-400">Deep Learning Optimization</div>
+                                </div>
+                            </label>
+
+                            <label
+                                class="flex items-start p-3 border rounded-lg cursor-pointer hover:bg-white/5 transition-colors border-[#476570] has-[:checked]:border-yellow-400 has-[:checked]:bg-yellow-400/10 relative group">
+                                <input type="radio" name="strategy_select" value="FINGERPRINT"
+                                    class="accent-yellow-400 mr-3 w-4 h-4 mt-1">
+                                <div class="w-full">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="font-bold text-white text-sm">Fingerprint Match</div>
+                                            <div class="text-[10px] text-gray-400">Historical Best-Fit</div>
+                                        </div>
+                                        <button id="btn-auto-toggle" onclick="toggleAutoMode(event)"
+                                            class="text-[10px] font-bold px-3 py-1 rounded border border-[#476570] bg-[#122a33] text-gray-400 hover:text-white hover:border-gray-400 shadow-sm transition-all uppercase">
+                                            MANUAL
+                                        </button>
+                                    </div>
+                                    <div id="fp-active-indicator"
+                                        class="text-[9px] font-mono font-bold text-blue-300 mt-2 bg-blue-900/40 px-2 py-1 rounded border border-blue-700 hidden">
+                                        ACTIVE: None
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="border-t border-[#476570] pt-4">
+                        <label class="flex items-center justify-between cursor-pointer group">
+                            <div><span class="font-bold text-sm text-gray-300 group-hover:text-white">Test Mode</span>
+                                <div class="text-[10px] text-gray-500">Bypass Hardware Safety Switch</div>
+                            </div>
+                            <div class="relative inline-flex items-center cursor-pointer"><input type="checkbox"
+                                    id="test-mode-toggle" class="sr-only peer">
+                                <div
+                                    class="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-[#ebf552] peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500">
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="border-t border-[#476570] pt-4">
+                        <label class="text-xs font-bold text-[#ebf552] uppercase tracking-wider mb-2 block">Process
+                            Insight Log</label>
+                        <div id="hybrid-insight-log"
+                            class="bg-black/40 border border-[#476570] rounded p-2 overflow-y-auto font-mono text-[9px] text-gray-400 space-y-2 custom-scrollbar"
+                            style="max-height: 120px;">
+                            <div class="text-blue-400 italic">Initializing insight monitor...</div>
+                        </div>
+                    </div>
+                    <div class="mt-auto pt-4">
+                        <button id="btn-hybrid-engage" onclick="toggleHybridSystem()"
+                            class="w-full py-4 rounded-lg font-black text-sm tracking-wider uppercase shadow-lg transform transition-all active:scale-95 bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600">ENGAGE
+                            SYSTEM</button>
+                        <div id="hybrid-status-text"
+                            class="text-center text-[10px] font-mono text-gray-400 mt-2 font-bold">SYSTEM STANDBY</div>
+                        <div id="batch-lock-msg" class="text-center text-[10px] text-red-400 mt-1 hidden font-bold">🔒
+                            Batch Selection Locked</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-span-6 flex flex-col gap-4 h-full overflow-hidden">
+                <div class="glass-panel p-5 bg-[#1a3842] shrink-0">
+                    <div class="flex justify-between items-end mb-2">
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-300">Active Adjustments</h3>
+                        </div>
+                        <div id="conf-badge"
+                            class="px-2 py-1 bg-gray-800 text-gray-400 text-[10px] font-bold rounded uppercase">Unknown
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="flex items-baseline gap-1"><span id="conf-val"
+                                class="text-2xl font-black text-white">0</span><span
+                                class="text-xs text-gray-400 font-bold">%</span></div>
+                        <div class="flex-1 conf-bar-bg">
+                            <div id="conf-bar" class="conf-bar-fill bg-gray-500"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel flex flex-col overflow-hidden flex-1 bg-[#1a3842] relative">
+                    <div id="data-stall-overlay"
+                        class="absolute inset-0 bg-[#122a33]/90 z-50 flex flex-col items-center justify-center hidden">
+                        <div class="text-red-500 font-black text-xl animate-pulse">⚠️ DATA STALLED</div>
+                        <div class="text-gray-400 font-bold text-[10px] uppercase">Safety Interlock: Status Set to 0
+                        </div>
+                    </div>
+
+                    <div class="p-3 border-b border-[#476570] bg-[#152e36] flex justify-between items-center shrink-0">
+                        <span class="text-[10px] text-[#ebf552] font-mono" id="last-update-time">WAITING...</span>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-2">
+                        <table class="action-table">
+                            <thead>
+                                <tr>
+                                    <th class="pl-3">Variable</th>
+                                    <th>Current</th>
+                                    <th>Target</th>
+                                    <th>Delta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="action-table-body">
+                                <tr>
+                                    <td colspan="4" class="text-center py-8 text-gray-500 italic">System Standby...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-span-3 glass-panel flex flex-col overflow-hidden bg-[#1a3842]">
+                <div class="p-3 border-b border-[#122a33] brand-header-bg shrink-0">
+                    <h2 class="text-sm font-bold text-[#122a33]">LIVE SENSORS</h2>
+                </div>
+                <div id="hybrid-sensor-list"
+                    class="flex-1 overflow-y-auto p-3 space-y-1 bg-transparent font-mono text-xs"></div>
+            </div>
+        </div>
+
+        <div id="panel-fingerprint" class="hidden grid-cols-12 gap-4 h-full w-full transition-grid relative">
+            <div id="dash-left-col"
+                class="col-span-3 glass-panel flex flex-col overflow-hidden transition-all duration-300">
+                <div class="p-3 border-b border-[#476570] brand-sub-header flex justify-between items-center shrink-0">
+                    <h2 class="text-sm font-bold text-white">SEARCH PARAMETERS</h2>
+                    <button onclick="initializeApp()"
+                        class="text-xs text-[#ebf552] font-bold hover:underline">RESET</button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-3 space-y-3 bg-[#1a3842]" id="settings-controls">
+                    <div class="text-center text-sm text-gray-400 mt-4">Loading Config...</div>
+                </div>
+                <div class="p-3 border-t border-[#476570] bg-[#152e36] shrink-0"><button onclick="findFingerprint()"
+                        id="find-fingerprint-btn" style="border: 2px solid white !important;"
+                        class="w-full py-3 bg-[#ebf552] text-[#122a33] font-mono text-sm font-bold rounded shadow active:scale-95 hover:bg-[#f3ff6f] transition-all">SCAN
+                        HISTORY</button></div>
+            </div>
+            <div id="dash-mid-col"
+                class="col-span-7 flex flex-col gap-4 h-full overflow-hidden transition-all duration-300">
+                <div class="grid grid-cols-2 gap-4 h-[45%] shrink-0">
+                    <div class="glass-panel flex flex-col overflow-hidden">
+                        <div
+                            class="p-3 border-b border-[#476570] bg-[#152e36] flex justify-between items-center shrink-0">
+                            <h3 class="text-sm font-bold text-white">Real-Time Status</h3>
+                            <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                        </div>
+                        <div id="current-setpoints"
+                            class="flex-1 overflow-y-auto p-3 space-y-1 font-mono text-sm bg-[#1a3842]"></div>
+                    </div>
+                    <div class="glass-panel flex flex-col overflow-hidden">
+                        <div class="p-3 border-b border-[#476570] bg-[#152e36] shrink-0">
+                            <h3 class="text-sm font-bold text-white">Optimized Target</h3>
+                        </div>
+                        <div id="recommended-setpoints"
+                            class="flex-1 overflow-y-auto p-3 space-y-1 font-mono text-sm bg-[#1a3842]">
+                            <div class="text-center text-gray-500 mt-6">Waiting for Scan...</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-panel flex-1 p-3 relative flex flex-col min-h-0 bg-[#1a3842]">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-sm font-bold text-white">Prediction</h3>
+                        <div class="flex space-x-2"><button onclick="toggleDashChart('trend')"
+                                class="text-xs font-bold text-[#122a33] border border-[#ebf552] px-3 py-1 rounded bg-[#ebf552] hover:brightness-110">Trend</button><button
+                                onclick="toggleDashChart('parallel')"
+                                class="text-xs font-bold text-gray-400 border border-gray-600 px-3 py-1 rounded hover:bg-gray-700">Parallel</button>
+                        </div>
+                    </div>
+                    <div id="dash-chart-trend" class="relative w-full flex-1 min-h-0"><canvas
+                            id="time-series-chart"></canvas></div>
+                    <div id="dash-chart-parallel" class="hidden relative w-full flex-1 min-h-0">
+                        <div id="dash-plotly" class="w-full h-full"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-span-2 glass-panel flex flex-col overflow-hidden">
+                <div class="p-3 border-b border-[#476570] bg-[#152e36] shrink-0 flex justify-between items-center">
+                    <h2 class="text-sm font-bold text-white">Matches</h2><button onclick="findFingerprint()"
+                        id="btn-scan"
+                        class="text-[10px] bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded border border-gray-600 font-bold transition-colors">SCAN</button>
+                </div>
+                <div id="recommendations-list" class="flex-1 overflow-y-auto p-3 space-y-3 bg-[#1a3842]">
+                    <div class="text-center text-gray-500 mt-10 text-xs">Click SCAN to find batches.</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="panel-mbrl" class="hidden grid-cols-12 gap-4 h-full w-full">
+            <div class="col-span-2 glass-panel flex flex-col rounded overflow-hidden">
+                <div class="brand-header-bg p-2 flex justify-between items-center">
+                    <h2 class="text-[10px] font-bold tracking-wider text-[#122a33]">LIVE SENSORS</h2>
+                </div>
+                <div id="mbrl-live-list"
+                    class="flex-1 overflow-y-auto p-2 space-y-1 font-mono text-[10px] bg-[#1a3842]"></div>
+            </div>
+            <div class="col-span-7 flex flex-col gap-4">
+                <div class="h-1/3 glass-panel rounded p-3 flex flex-col relative bg-[#1a3842]">
+                    <h2 class="text-[10px] font-bold text-[#ebf552] uppercase">Ensemble Uncertainty (System Confidence)
+                    </h2>
+                    <div class="flex-1 relative"><canvas id="mbrl-uncertainty-chart"></canvas></div>
+                    <div class="absolute top-2 right-2 text-right">
+                        <div class="text-2xl font-black text-white" id="mbrl-reward">---</div>
+                        <div class="text-[9px] text-gray-400 font-bold uppercase">Estimated Reward</div>
+                    </div>
+                </div>
+                <div class="h-2/3 glass-panel rounded p-3 flex flex-col bg-[#1a3842]">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-[10px] font-bold text-[#ebf552] uppercase">Control Trajectory</h2><select
+                            id="mbrl-chart-select" onchange="updateMbrlChartTarget(this.value)"
+                            class="text-[10px] border rounded border-gray-600 bg-[#122a33] text-white font-bold outline-none"></select>
+                    </div>
+                    <div class="flex-1 relative"><canvas id="mbrl-trend-chart"></canvas></div>
+                </div>
+            </div>
+            <div class="col-span-3 flex flex-col gap-4">
+                <div class="flex-1 glass-panel rounded flex flex-col overflow-hidden bg-[#1a3842]">
+                    <div class="bg-[#152e36] p-2 border-b border-[#476570] flex justify-between items-center">
+                        <h2 class="text-[10px] font-bold text-gray-300 uppercase">Current Action</h2>
+                    </div>
+                    <div id="mbrl-action-list" class="flex-1 overflow-y-auto bg-[#1a3842] p-0"></div>
+                </div>
+                <div class="h-1/3 glass-panel rounded flex flex-col overflow-hidden border-t-2 border-t-red-500">
+                    <div class="bg-red-900/20 p-2 border-b border-red-900/50">
+                        <h2 class="text-[10px] font-bold text-red-500">GUARDIAN LOGS</h2>
+                    </div>
+                    <div id="mbrl-guardian-log"
+                        class="flex-1 overflow-y-auto p-2 font-mono text-[9px] bg-black text-gray-300"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="panel-simulator" class="hidden h-full grid-cols-12 gap-4 transition-grid">
+            <button onclick="toggleSimSidebar()" id="sim-toggle-btn" class="sidebar-toggle">◀</button>
+            <div id="sim-sidebar"
+                class="col-span-3 glass-panel flex flex-col overflow-hidden transition-all duration-300">
+                <div class="p-3 border-b border-[#476570] bg-[#152e36] flex justify-between items-center">
+                    <h2 class="text-sm font-bold text-white">Selection</h2>
+                </div>
+                <div class="flex-1 overflow-y-auto p-3 space-y-4 ml-4 bg-[#1a3842]">
+                    <div>
+                        <h3
+                            class="text-xs font-bold text-[#ebf552] mb-2 uppercase tracking-wider border-b border-[#476570] pb-1">
+                            Controls</h3>
+                        <div id="sim-controls-list" class="space-y-1"></div>
+                    </div>
+                    <div>
+                        <h3
+                            class="text-xs font-bold text-[#ebf552] mb-2 uppercase tracking-wider border-b border-[#476570] pb-1">
+                            Indicators</h3>
+                        <div id="sim-indicators-list" class="space-y-1"></div>
+                    </div>
+                </div>
+                <div class="p-3 bg-[#152e36] flex flex-col gap-3 shrink-0 border-t border-[#476570]">
+                    <div><span class="text-xs text-gray-400 block mb-1">Color By:</span><select id="sim-color-var"
+                            class="w-full outline-none font-bold rounded p-1 text-xs border border-gray-600 bg-[#122a33] text-white"></select>
+                    </div>
+                    <div><span class="text-xs text-gray-400 block mb-1">Window:</span><select id="sim-time-window"
+                            class="w-full outline-none font-bold rounded p-1 text-xs border border-gray-600 bg-[#122a33] text-white">
+                            <option value="1440">Last 24 Hours</option>
+                            <option value="0">Full Dataset</option>
+                        </select></div>
+                    <button onclick="runSimulation()" style="border: 2px solid white !important;"
+                        class="w-full py-2 bg-[#ebf552] text-[#122a33] text-xs font-bold uppercase rounded active:scale-95 hover:brightness-110 shadow-sm transition-all">GENERATE
+                        PLOT</button>
+                </div>
+            </div>
+            <div id="sim-plot-area"
+                class="col-span-9 glass-panel p-3 flex flex-col relative transition-all duration-300 bg-[#1a3842] h-full">
+                <div id="plotly-container" class="flex-1 w-full min-h-0 relative">
+                    <div class="h-full flex items-center justify-center text-gray-500 text-sm flex-col"><span>Select
+                            variables...</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="panel-trends" class="hidden h-full flex-col gap-4">
+            <div
+                class="glass-panel p-4 flex items-center space-x-4 shrink-0 border-l-4 border-l-[#ebf552] bg-[#1a3842]">
+                <span class="text-sm font-bold text-white">TAG:</span><select id="trend-variable-select"
+                    onchange="loadTrendData(this.value)"
+                    class="border border-gray-600 rounded px-3 py-1.5 outline-none w-64 font-bold text-sm text-white bg-[#122a33]"></select>
+            </div>
+            <div class="glass-panel flex-1 p-4 relative min-h-0 bg-[#1a3842]"><canvas id="trend-chart"></canvas></div>
+        </div>
+
+        <div id="panel-softsensor" class="hidden h-full flex-col gap-4">
+            <div
+                class="glass-panel p-4 flex justify-between items-center shrink-0 bg-[#1a3842] border-l-4 border-l-blue-500">
+                <div class="flex items-center gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Soft Sensor Prediction (1 Hour)</h2>
+                        <p class="text-xs text-gray-400">World Model Rollout (Constant Action)</p>
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-[10px] font-bold text-[#ebf552]">TARGET VARIABLE</label>
+                        <select id="softsensor-select" onchange="fetchSoftSensorPrediction()"
+                            class="border border-gray-600 rounded px-2 py-1 outline-none font-bold text-sm text-white bg-[#122a33]"></select>
+                    </div>
+                </div>
+                <button onclick="fetchSoftSensorPrediction()"
+                    class="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded hover:bg-blue-500 transition">RECALCULATE</button>
+            </div>
+            <div class="flex-1 glass-panel p-4 relative min-h-0 bg-[#1a3842] flex flex-col">
+                <div id="softsensor-chart-container" class="w-full h-full">
+                    <div class="flex justify-center items-center h-full text-gray-500">Select a variable...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="panel-softsensor-sim" class="hidden h-full grid-cols-12 gap-4">
+            <div class="col-span-4 glass-panel flex flex-col bg-[#1a3842] overflow-hidden">
+                <div class="p-4 border-b border-[#476570] brand-header-bg flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-bold text-[#122a33]">Manual Inputs</h2>
+                        <p class="text-xs text-[#122a33]/70">Adjust setpoints to simulate impact.</p>
+                    </div>
+                    <button onclick="initSoftSensorSim()"
+                        class="bg-[#122a33] text-[#ebf552] px-3 py-1.5 rounded text-[10px] font-black hover:brightness-125 shadow transition-all uppercase tracking-wider">SYNC
+                        LIVE</button>
+                </div>
+                <div id="sim-input-container" class="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar"></div>
+                <div class="p-4 border-t border-[#476570] bg-[#152e36]">
+                    <button onclick="runSoftSensorSim()"
+                        class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded shadow transition-all">RUN
+                        SIMULATION (60 min)</button>
+                </div>
+            </div>
+            <div class="col-span-8 glass-panel flex flex-col bg-[#1a3842] p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-white">Projected Response</h2>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-[#ebf552]">VIEW:</span>
+                        <select id="sim-output-select" onchange="runSoftSensorSim()"
+                            class="border border-gray-600 rounded px-2 py-1 text-xs font-bold bg-[#122a33] text-white outline-none"></select>
+                    </div>
+                </div>
+                <div id="sim-chart-container" class="flex-1 relative w-full min-h-0">
+                    <div class="flex h-full items-center justify-center text-gray-500">Run simulation to view data</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="panel-op-summary" class="hidden h-full grid-cols-12 gap-4 transition-grid overflow-hidden relative">
+            <div class="col-span-10 flex flex-col gap-3 h-full overflow-hidden">
+                <div id="op-kpi-row" class="flex gap-2 shrink-0 overflow-x-auto custom-scrollbar pb-1"></div>
+
+                <div
+                    class="glass-panel shrink-0 px-3 py-1.5 bg-[#1a3842] border border-[#2d4a54] flex flex-row items-center h-[34px] overflow-hidden gap-3">
+                    <div
+                        class="text-[10px] text-[#ebf552] font-black uppercase tracking-widest flex items-center shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="mr-1.5">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="16" x2="12" y2="12" />
+                            <line x1="12" y1="8" x2="12.01" y2="8" />
+                        </svg>
+                        PROCESS INSIGHTS
+                    </div>
+                    <div id="op-summary-insights"
+                        class="font-mono text-xs text-gray-400 leading-none whitespace-nowrap overflow-hidden text-ellipsis flex-1">
+                        <span class="text-gray-500 italic">Awaiting cycle data...</span>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 shrink-0 w-full">
+                    <div class="flex-1 min-w-0 glass-panel border border-[#2d4a54] bg-[#1a3842] flex flex-row">
+                        <div
+                            class="bg-[#152e36] text-white text-[10px] font-black tracking-widest uppercase border-r border-[#2d4a54] flex items-center justify-center shrink-0 w-8">
+                            <span style="writing-mode: vertical-rl; transform: rotate(180deg);">Kiln Process</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <table class="w-full text-[11px] text-left table-fixed">
+                                <thead class="text-gray-500 border-b border-[#2d4a54] bg-[#1a3842]">
+                                    <tr>
+                                        <th class="p-1.5 font-bold w-[45%] pl-2 truncate">Variable</th>
+                                        <th class="p-1.5 font-bold text-right w-[15%] truncate">Curr</th>
+                                        <th class="p-1.5 font-bold text-right w-[20%] truncate">Nudge</th>
+                                        <th class="p-1.5 font-bold text-right w-[20%] pr-2 truncate">Target</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="op-table-kiln" class="divide-y divide-[#2d4a54]"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 min-w-0 glass-panel border border-[#2d4a54] bg-[#1a3842] flex flex-row">
+                        <div
+                            class="bg-[#152e36] text-white text-[10px] font-black tracking-widest uppercase border-r border-[#2d4a54] flex items-center justify-center shrink-0 w-8">
+                            <span style="writing-mode: vertical-rl; transform: rotate(180deg);">Preheater /
+                                Precalciner</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <table class="w-full text-[11px] text-left table-fixed">
+                                <thead class="text-gray-500 border-b border-[#2d4a54] bg-[#1a3842]">
+                                    <tr>
+                                        <th class="p-1.5 font-bold w-[45%] pl-2 truncate">Variable</th>
+                                        <th class="p-1.5 font-bold text-right w-[15%] truncate">Curr</th>
+                                        <th class="p-1.5 font-bold text-right w-[20%] truncate">Nudge</th>
+                                        <th class="p-1.5 font-bold text-right w-[20%] pr-2 truncate">Target</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="op-table-phpc" class="divide-y divide-[#2d4a54]"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 min-w-0 glass-panel border border-[#2d4a54] bg-[#1a3842] flex flex-row">
+                        <div
+                            class="bg-[#152e36] text-white text-[10px] font-black tracking-widest uppercase border-r border-[#2d4a54] flex items-center justify-center shrink-0 w-8">
+                            <span style="writing-mode: vertical-rl; transform: rotate(180deg);">Cooler Section</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <table class="w-full text-[11px] text-left table-fixed">
+                                <thead class="text-gray-500 border-b border-[#2d4a54] bg-[#1a3842]">
+                                    <tr>
+                                        <th class="p-1.5 font-bold w-[45%] pl-2 truncate">Variable</th>
+                                        <th class="p-1.5 font-bold text-right w-[15%] truncate">Curr</th>
+                                        <th class="p-1.5 font-bold text-right w-[20%] truncate">Nudge</th>
+                                        <th class="p-1.5 font-bold text-right w-[20%] pr-2 truncate">Target</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="op-table-cooler" class="divide-y divide-[#2d4a54]"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex min-h-0 shrink-0 w-full mt-2">
+                    <div class="glass-panel flex-1 flex flex-col min-h-0 border border-[#2d4a54] bg-[#1a3842] min-w-0">
+                        <div
+                            class="p-1.5 bg-[#152e36] border-b border-[#2d4a54] flex justify-between items-center shrink-0">
+                            <span class="text-[10px] font-bold text-white uppercase tracking-wider">Real-Time Trends &
+                                AI Predictions</span>
+                            <div class="flex gap-2">
+                                <button onclick="clearOpTrends()"
+                                    class="text-[8px] font-bold px-2 py-0.5 border border-red-500 text-red-500 rounded hover:bg-red-500 hover:text-white transition-colors">CLEAR
+                                    MANUAL TRENDS</button>
+                                <div class="w-px h-3 bg-gray-600 mx-1"></div>
+                                <button onclick="toggleOpDashChart('trend')" id="btn-op-pred-trend"
+                                    class="text-[8px] font-bold px-2 py-0.5 bg-[#ebf552] text-[#122a33] rounded hover:brightness-110 transition-colors">TREND
+                                    VIEW</button>
+                                <button onclick="toggleOpDashChart('parallel')" id="btn-op-pred-parallel"
+                                    class="text-[8px] font-bold px-2 py-0.5 border border-gray-500 text-gray-400 rounded hover:bg-white/5 transition-colors">PARALLEL
+                                    VIEW</button>
+                            </div>
+                        </div>
+                        <div id="op-dash-chart-trend" class="flex-1 relative w-full min-h-0 p-1"><canvas
+                                id="op-summary-chart-canvas"></canvas></div>
+                        <div id="op-dash-chart-parallel" class="hidden relative w-full flex-1 min-h-0 p-1">
+                            <div id="op-dash-plotly" class="w-full h-full"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="col-span-2 glass-panel flex flex-col h-full border border-[#2d4a54] bg-[#1a3842] overflow-hidden">
+                <div
+                    class="bg-[#ebf552] text-[#122a33] text-[10px] font-black uppercase p-3 flex justify-between items-center shrink-0 shadow-md">
+                    LIVE SENSORS <span
+                        class="text-[8px] font-bold opacity-70 border border-[#122a33] px-1 rounded">FIXED VIEW</span>
+                </div>
+                <div id="op-live-sensors-list" class="flex-1 overflow-hidden p-1 flex flex-col gap-0.5"></div>
+            </div>
+        </div>
+
+        <div id="panel-config" class="hidden h-full flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
+            <div
+                class="glass-panel p-4 border-l-4 border-l-[#ebf552] shrink-0 flex justify-between items-center bg-[#1a3842]">
+                <div class="flex items-center gap-4">
+                    <h3 class="text-lg font-bold text-white">System Configuration</h3>
+                    <div class="h-6 w-px bg-white/10"></div>
+                    <label class="flex items-center cursor-pointer group">
+                        <span
+                            class="text-[10px] font-bold text-gray-500 group-hover:text-blue-400 mr-2 uppercase tracking-widest transition-colors">Developer
+                            Mode</span>
+                        <div class="relative">
+                            <input type="checkbox" id="config-ui-toggle" class="sr-only" onchange="toggleConfigView()">
+                            <div class="w-8 h-4 bg-gray-700 rounded-full shadow-inner"></div>
+                            <div
+                                class="dot absolute w-2 h-2 bg-white rounded-full shadow left-1 top-1 transition-transform">
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                <button onclick="syncData()"
+                    class="text-[#ebf552] border border-[#ebf552] px-4 py-1.5 rounded hover:bg-[#ebf552] hover:text-[#122a33] text-xs font-bold transition-all shadow-sm active:scale-95">SYNC
+                    DATA LAKE</button>
+            </div>
+
+            <div id="config-table-view" class="flex flex-col gap-6 pb-8">
+                <div class="glass-panel overflow-hidden border border-white/5">
+                    <div class="p-3 bg-white/5 border-b border-white/10 flex justify-between items-center">
+                        <h4 class="text-xs font-black text-[#ebf552] uppercase tracking-tighter">AI Core Bindings</h4>
+                        <span class="text-[9px] text-gray-500 font-bold">Maps AI roles to process tags</span>
+                    </div>
+                    <div class="p-4 bg-[#0e2229]/50">
+                        <div id="config-ai-bindings" class="grid grid-cols-2 gap-6"></div>
+                    </div>
+                </div>
+
+                <div class="glass-panel overflow-hidden border border-white/5">
+                    <div class="p-3 bg-white/5 border-b border-white/10 flex justify-between items-center">
+                        <h4 class="text-xs font-black text-[#ebf552] uppercase tracking-tighter">Control Variables (MVs)
+                        </h4>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-[11px]">
+                            <thead>
+                                <tr class="bg-[#122a33] text-gray-400 uppercase font-black border-b border-[#476570]">
+                                    <th class="px-4 py-3">Variable Name</th>
+                                    <th class="px-2 py-3">Unit</th>
+                                    <th class="px-2 py-3">Min</th>
+                                    <th class="px-2 py-3">Max</th>
+                                    <th class="px-2 py-3">Priority</th>
+                                    <th class="px-2 py-3">Nudge</th>
+                                    <th class="px-4 py-3 text-center">AI En</th>
+                                </tr>
+                            </thead>
+                            <tbody id="config-controls-body" class="divide-y divide-white/5"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="glass-panel overflow-hidden border border-white/5">
+                    <div class="p-3 bg-white/5 border-b border-white/10">
+                        <h4 class="text-xs font-black text-[#ebf552] uppercase tracking-tighter">Optimization Strategy
+                            Target</h4>
+                    </div>
+                    <div class="p-6 bg-[#0e2229]/50 border-b border-white/10">
+                        <div class="flex items-center gap-8">
+                            <div class="flex-1"><label
+                                    class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Target
+                                    Variable</label><select id="config-opt-target"
+                                    class="w-full bg-[#122a33] border border-[#476570] text-blue-400 font-bold rounded p-2 outline-none"></select>
+                            </div>
+                            <div class="w-48"><label
+                                    class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Target
+                                    Setpoint</label><input type="number" id="config-opt-setpoint"
+                                    class="w-full bg-[#122a33] border border-[#476570] text-ai-cyan font-mono font-bold rounded p-2 outline-none">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-white/5 flex justify-end"><button onclick="saveTableConfig()"
+                            class="px-8 py-2.5 bg-[#ebf552] text-[#122a33] text-xs font-black uppercase rounded shadow-lg hover:brightness-110 active:scale-95 transition-all">Apply
+                            Changes</button></div>
+                </div>
+            </div>
+
+            <div id="config-json-view"
+                class="hidden flex-1 glass-panel flex flex-col min-h-0 bg-[#1a3842] border-2 border-dashed border-white/10">
+                <div class="p-3 bg-red-900/10 border-b border-white/5 flex justify-between items-center"><span
+                        class="text-[10px] font-bold text-red-400 animate-pulse">!! STANDBY: RAW JSON EDITOR
+                        !!</span><span class="text-[9px] text-gray-500">Manual edit bypasses UI validation.</span></div>
+                <textarea id="config-editor"
+                    class="flex-1 bg-[#0e2229] text-gray-300 p-6 font-mono text-sm resize-none border-none outline-none"></textarea>
+                <div class="p-4 bg-[#152e36] border-t border-[#476570] flex justify-end shrink-0 gap-4"><button
+                        onclick="saveConfig()"
+                        class="px-8 py-2.5 bg-red-600 text-white text-xs font-black uppercase rounded hover:bg-red-500 shadow-xl transition-all active:scale-95">Overwrite
+                        JSON</button></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // =========================================================================
+        // STATE & VARIABLES
+        // =========================================================================
+        const API_URL = 'http://localhost:5000';
+        let timeSeriesChart, trendChart, mbrlTrendChart, mbrlUncertChart, opSummaryChartCanvas;
+        let controlDefaults = {};
+        let allRecommendations = [];
+        let currentModelConfig = {};
+        let activeTrendVariable = null;
+        let activeMbrlVar = null;
+        let isSidebarOpen = true;
+        let aiTargets = {};
+        let isHybridEngaged = false;
+        let selectedBatchIndex = 0;
+        let isAutoMode = false;
+        let lastDataTime = Date.now();
+        let isStalled = false;
+
+        let latestLiveValues = {};
+
+        // Op Summary State
+        let opActiveTrends = [];
+        let opHistoryData = {};
+        let opPredictionData = {};
+
+        // =========================================================================
+        // INITIALIZATION
+        // =========================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            initializeApp().then(() => {
+                initOpSummary();
+            });
+            initSocket();
+            restoreState();
+        });
+
+        // =========================================================================
+        // UI TOGGLES & RESTORE
+        // =========================================================================
+        function toggleAutoMode(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isHybridEngaged) return;
+            isAutoMode = !isAutoMode;
+            updateAutoButtonUI();
+        }
+
+        function updateAutoButtonUI() {
+            const btn = document.getElementById('btn-auto-toggle');
+            if (isAutoMode) {
+                btn.innerText = "AUTO ENABLED";
+                btn.className = "text-[10px] font-bold px-3 py-1 rounded border border-green-600 bg-green-500 text-white shadow-md transform scale-105 transition-all uppercase";
+                const list = document.getElementById('recommendations-list');
+                if (list) {
+                    Array.from(list.children).forEach(c => c.classList.remove('batch-active'));
+                }
+                selectedBatchIndex = -1;
+            } else {
+                btn.innerText = "MANUAL";
+                btn.className = "text-[10px] font-bold px-3 py-1 rounded border border-[#476570] bg-[#122a33] text-gray-400 hover:text-white hover:border-gray-400 shadow-sm transition-all uppercase";
+            }
+        }
+
+        async function restoreState() {
+            try {
+                const response = await fetch(`${API_URL}/api/status`);
+                const data = await response.json();
+
+                if (data.test_mode) {
+                    const toggle = document.getElementById('test-mode-toggle');
+                    if (toggle) {
+                        toggle.checked = true;
+                        toggle.dispatchEvent(new Event('change'));
+                    }
+                }
+
+                if (data.strategy) {
+                    const strategyRadio = document.querySelector(`input[name="strategy_select"][value="${data.strategy}"]`);
+                    if (strategyRadio) strategyRadio.checked = true;
+                }
+
+                if (data.enabled) {
+                    isHybridEngaged = true;
+                    const btn = document.getElementById('btn-hybrid-engage');
+                    const statusEl = document.getElementById('hybrid-status-text');
+                    btn.innerText = "DISENGAGE SYSTEM";
+
+                    if (data.test_mode) {
+                        btn.className = "w-full py-4 rounded-lg font-black text-sm tracking-wider uppercase shadow-lg transform transition-all bg-yellow-500 text-black border border-yellow-600 hover:bg-yellow-400";
+                        statusEl.innerText = `TEST MODE ACTIVE: ${data.strategy}`;
+                        statusEl.className = "text-center text-[10px] font-mono text-yellow-500 mt-2 font-bold animate-pulse";
+                    } else {
+                        btn.className = "w-full py-4 rounded-lg font-black text-sm tracking-wider uppercase shadow-lg transform transition-all bg-ai-cyan text-[#122a33] border border-cyan-400 hover:brightness-110";
+                        statusEl.innerText = `SYSTEM ACTIVE: ${data.strategy}`;
+                        statusEl.className = "text-center text-[10px] font-mono text-ai-cyan mt-2 font-bold";
+                    }
+
+                    if (data.fingerprint_type === 'MANUAL' && data.active_target) {
+                        const indicator = document.getElementById('fp-active-indicator');
+                        indicator.innerText = `ACTIVE: ${data.active_target.fingerprint_timestamp || 'Manual Selection'}`;
+                        indicator.classList.remove('hidden');
+                        document.getElementById('batch-lock-msg').classList.remove('hidden');
+                    } else if (data.fingerprint_type === 'AUTO') {
+                        isAutoMode = true;
+                        updateAutoButtonUI();
+                        const indicator = document.getElementById('fp-active-indicator');
+                        indicator.innerText = "ACTIVE: AUTO-SEARCH";
+                        indicator.classList.remove('hidden');
+                    }
+
+                    if (document.getElementById('find-fingerprint-btn')) document.getElementById('find-fingerprint-btn').disabled = true;
+                    if (document.getElementById('btn-scan')) document.getElementById('btn-scan').disabled = true;
+                    if (document.getElementById('btn-auto-toggle')) document.getElementById('btn-auto-toggle').classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            } catch (error) {
+                console.error("State Restore Failed:", error);
+            }
+        }
+
+        function switchTab(t) {
+            const tabs = ['hybrid', 'fingerprint', 'mbrl', 'simulator', 'trends', 'config', 'softsensor', 'softsensor-sim', 'op-summary'];
+
+            tabs.forEach(x => {
+                const p = document.getElementById(`panel-${x}`);
+                const b = document.getElementById(`nav-${x}`);
+
+                if (p) {
+                    p.classList.add('hidden');
+                    p.classList.remove('grid', 'flex');
+                    if (x === t) {
+                        p.classList.remove('hidden');
+                        p.classList.add(x === 'softsensor-sim' || x === 'mbrl' || x === 'hybrid' || x === 'fingerprint' || x === 'simulator' || x === 'op-summary' ? 'grid' : 'flex');
+                    }
+                }
+
+                if (b) {
+                    b.classList.remove('nav-btn-active');
+                    b.classList.add('nav-btn-inactive');
+                    if (x === t) {
+                        b.classList.add('nav-btn-active');
+                        b.classList.remove('nav-btn-inactive');
+
+                        setTimeout(() => {
+                            window.dispatchEvent(new Event('resize'));
+                            if (t === 'softsensor') fetchSoftSensorPrediction();
+                            if (t === 'softsensor-sim') runSoftSensorSim();
+                            if (t === 'op-summary') {
+                                drawOpSummaryChart();
+                                drawOpParallelChart();
+                            }
+                        }, 100);
+                    }
+                }
+            });
+
+            if (t === 'softsensor-sim') {
+                initSoftSensorSim();
+            }
+        }
+
+        // =========================================================================
+        // CHARTS & SOCKETS
+        // =========================================================================
+        const nowLinePlugin = {
+            id: 'nowLine',
+            beforeDraw: chart => {
+                const ctx = chart.ctx;
+                const xAxis = chart.scales.x;
+                const yAxis = chart.scales.y;
+
+                if (xAxis.min <= 0 && xAxis.max >= 0) {
+                    const x = xAxis.getPixelForValue(0);
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(x, yAxis.top);
+                    ctx.lineTo(x, yAxis.bottom);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#ebf552';
+                    ctx.setLineDash([5, 5]);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    ctx.fillStyle = '#ebf552';
+                    ctx.font = 'bold 10px monospace';
+                    ctx.fillText('NOW', x - 12, yAxis.bottom - 5);
+                }
+            }
+        };
+
+        function initCharts() {
+            if (typeof Chart === 'undefined') return;
+
+            Chart.register(nowLinePlugin);
+            const darkGrid = '#2d4a54';
+            const darkText = '#aabdc4';
+
+            const dashOpts = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    x: { type: 'linear', min: -5, max: 30, ticks: { stepSize: 5, color: darkText }, grid: { color: darkGrid }, title: { display: true, text: 'Minutes from Now', color: darkText } },
+                    y: { grid: { color: darkGrid }, ticks: { color: darkText } }
+                },
+                plugins: {
+                    legend: { labels: { boxWidth: 12, color: darkText } }
+                }
+            };
+
+            const timeOpts = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    x: { type: 'time', time: { unit: 'minute' }, grid: { display: false }, ticks: { color: darkText } },
+                    y: { grid: { color: darkGrid }, ticks: { color: darkText } }
+                },
+                elements: { point: { radius: 0 } },
+                plugins: {
+                    legend: { labels: { color: darkText } }
+                }
+            };
+
+            if (document.getElementById('time-series-chart')) {
+                timeSeriesChart = new Chart(document.getElementById('time-series-chart'), { type: 'line', data: { datasets: [] }, options: dashOpts });
+            }
+            if (document.getElementById('trend-chart')) {
+                trendChart = new Chart(document.getElementById('trend-chart'), { type: 'line', data: { labels: [], datasets: [] }, options: timeOpts });
+            }
+            if (document.getElementById('mbrl-trend-chart')) {
+                mbrlTrendChart = new Chart(document.getElementById('mbrl-trend-chart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Real', borderColor: '#FFFFFF', borderWidth: 2, data: [] }, { label: 'Target', borderColor: '#ebf552', borderDash: [5, 5], borderWidth: 2, data: [] }] }, options: timeOpts });
+            }
+            if (document.getElementById('mbrl-uncertainty-chart')) {
+                mbrlUncertChart = new Chart(document.getElementById('mbrl-uncertainty-chart'), { type: 'bar', data: { labels: Array(20).fill(''), datasets: [{ label: 'Conf', data: Array(20).fill(0.1), backgroundColor: '#476570' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, max: 1.0 } } } });
+            }
+            if (document.getElementById('op-summary-chart-canvas')) {
+                opSummaryChartCanvas = new Chart(document.getElementById('op-summary-chart-canvas'), {
+                    type: 'line',
+                    data: { datasets: [] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: {
+                            x: { type: 'linear', min: -15, max: 15, ticks: { stepSize: 5, color: darkText, callback: function (val) { return val + 'm'; } }, grid: { color: darkGrid } },
+                            y: { grid: { color: darkGrid }, ticks: { color: darkText } }
+                        },
+                        plugins: {
+                            legend: { labels: { boxWidth: 10, color: darkText, usePointStyle: true, pointStyle: 'line' } },
+                            tooltip: { backgroundColor: '#122a33', titleColor: '#ebf552' }
+                        }
+                    }
+                });
+            }
+        }
+
+        function initSocket() {
+            try {
+                const socket = io(API_URL);
+
+                socket.on('connect', () => {
+                    document.getElementById('socket-status').innerText = 'LIVE';
+                    document.getElementById('socket-status-dot').className = 'w-2 h-2 rounded-full bg-green-500';
+                });
+
+                socket.on('live_values', (data) => {
+                    lastDataTime = Date.now();
+                    latestLiveValues = { ...latestLiveValues, ...data };
+
+                    if (isStalled) {
+                        isStalled = false;
+                        document.getElementById('socket-status').innerText = 'LIVE';
+                        document.getElementById('socket-status-dot').className = 'w-2 h-2 rounded-full bg-green-500';
+                        document.getElementById('data-stall-overlay').classList.add('hidden');
+                    }
+
+                    updateLiveUI(data);
+                    updateHybridLive(data);
+                    updateMbrlLive(data);
+                    updateOpSummary(data);
+                });
+
+                socket.on('autopilot_update', (data) => {
+                    updateHybridDashboard(data);
+                    updateMbrlUI(data);
+                    updateOpSummaryActions(data);
+                });
+
+                setInterval(() => {
+                    if (Date.now() - lastDataTime > 1000000 && !isStalled) {
+                        isStalled = true;
+                        document.getElementById('socket-status').innerText = 'DATA STALLED';
+                        document.getElementById('socket-status-dot').className = 'w-2 h-2 rounded-full bg-red-600 animate-pulse';
+                        document.getElementById('data-stall-overlay').classList.remove('hidden');
+                    }
+                }, 1000);
+            } catch (e) {
+                console.warn("Socket Error");
+            }
+        }
+
+        async function initializeApp() {
+            try {
+                const confRes = await fetch(`${API_URL}/api/config`);
+                if (!confRes.ok) throw new Error("Offline");
+                currentModelConfig = await confRes.json();
+            } catch (e) {
+                currentModelConfig = {};
+                document.getElementById('socket-status').innerText = 'DEMO';
+            }
+
+            document.getElementById('config-editor').value = JSON.stringify(currentModelConfig, null, 2);
+            populateConfigUI(currentModelConfig);
+
+            initRealTimeList();
+            initTrendDropdown();
+            initSimulatorControls();
+            populateMbrlDropdowns(currentModelConfig);
+            initSoftSensorDropdown();
+            initSoftSensorSim();
+
+            const combined = {};
+            const cvs = currentModelConfig.control_variables || {};
+
+            Object.keys(cvs).forEach(k => {
+                combined[k] = {
+                    Lower: 98,
+                    Higher: 102,
+                    Min: cvs[k].default_min !== undefined ? cvs[k].default_min : -9999,
+                    Max: cvs[k].default_max !== undefined ? cvs[k].default_max : 9999,
+                    priority: cvs[k].priority || 5
+                };
+            });
+
+            controlDefaults = combined;
+            populateSettingsPanel(controlDefaults);
+        }
+
+        // =========================================================================
+        // LIVE UPDATERS
+        // =========================================================================
+        function updateLiveUI(data) {
+            Object.keys(data).forEach(k => {
+                const el = document.getElementById(`live-val-${k.replace(/[^a-zA-Z0-9-_]/g, '')}`);
+                if (el) {
+                    el.innerText = parseFloat(data[k]).toFixed(2);
+                    el.classList.add('val-flash');
+                    setTimeout(() => el.classList.remove('val-flash'), 300);
+                }
+            });
+
+            if (timeSeriesChart && data['1_timestamp']) {
+                timeSeriesChart.data.datasets.forEach(ds => {
+                    if (ds.label.includes('(Real)') && data[ds.label.split(' (')[0]] !== undefined) {
+                        const newVal = data[ds.label.split(' (')[0]];
+                        ds.data.push({ x: 0, y: newVal });
+
+                        ds.data.forEach((pt, i) => {
+                            pt.x = i - (ds.data.length - 1);
+                        });
+
+                        while (ds.data.length > 0 && ds.data[0].x < -10) {
+                            ds.data.shift();
+                        }
+                    }
+                });
+                timeSeriesChart.update('none');
+            }
+        }
+
+        function updateHybridLive(data) {
+            const list = document.getElementById('hybrid-sensor-list');
+
+            if (list.children.length === 0) {
+                Object.keys(data).sort().forEach(k => {
+                    if (k.includes('timestamp')) return;
+                    list.innerHTML += `
+                        <div class="flex justify-between items-center py-2 border-b border-[#476570]">
+                            <span class="text-gray-400 font-bold truncate w-2/3" title="${k}">${k}</span>
+                            <span id="h-live-${k.replace(/[^a-zA-Z0-9]/g, '')}" class="font-mono font-bold text-white bg-gray-800 px-2 rounded">---</span>
+                        </div>`;
+                });
+            }
+
+            Object.keys(data).forEach(k => {
+                const el = document.getElementById(`h-live-${k.replace(/[^a-zA-Z0-9]/g, '')}`);
+                if (el) {
+                    const val = parseFloat(data[k]);
+                    el.innerText = val.toFixed(2);
+                    let colorClass = 'text-white bg-gray-800';
+
+                    if (currentModelConfig.control_variables) {
+                        const varConf = currentModelConfig.control_variables[k] || (currentModelConfig.indicator_variables ? currentModelConfig.indicator_variables[k] : null);
+                        if (varConf && varConf.default_min !== undefined && varConf.default_max !== undefined) {
+                            const min = varConf.default_min;
+                            const max = varConf.default_max;
+                            const buffer = (max - min) * 0.1;
+
+                            if (val < min || val > max) {
+                                colorClass = 'text-white bg-red-600';
+                            } else if (val < (min + buffer) || val > (max - buffer)) {
+                                colorClass = 'text-white bg-orange-500';
+                            }
+                        }
+                    }
+                    el.className = `font-mono font-bold px-2 rounded ${colorClass}`;
+                }
+            });
+        }
+
+        function updateMbrlLive(data) {
+            const list = document.getElementById('mbrl-live-list');
+
+            if (list.children.length === 0) {
+                Object.keys(data).sort().forEach(k => {
+                    if (k.includes('timestamp')) return;
+                    list.innerHTML += `
+                        <div class="flex justify-between border-b border-gray-700 pb-1">
+                            <span class="text-gray-400 truncate w-20" title="${k}">${k}</span>
+                            <span id="mbrl-val-${k}" class="text-ai-cyan font-bold">---</span>
+                        </div>`;
+                });
+            }
+
+            Object.keys(data).forEach(k => {
+                const el = document.getElementById(`mbrl-val-${k}`);
+                if (el) el.innerText = parseFloat(data[k]).toFixed(2);
+            });
+
+            if (activeMbrlVar && data[activeMbrlVar] && mbrlTrendChart) {
+                const now = new Date();
+                mbrlTrendChart.data.labels.push(now);
+                mbrlTrendChart.data.datasets[0].data.push(data[activeMbrlVar]);
+
+                const target = aiTargets[activeMbrlVar] !== undefined ? aiTargets[activeMbrlVar] : null;
+                mbrlTrendChart.data.datasets[1].data.push(target);
+
+                if (mbrlTrendChart.data.labels.length > 60) {
+                    mbrlTrendChart.data.labels.shift();
+                    mbrlTrendChart.data.datasets[0].data.shift();
+                    mbrlTrendChart.data.datasets[1].data.shift();
+                }
+                mbrlTrendChart.update('none');
+            }
+        }
+
+        // =========================================================================
+        // HYBRID PANEL
+        // =========================================================================
+        async function toggleHybridSystem() {
+            const btn = document.getElementById('btn-hybrid-engage');
+            const statusEl = document.getElementById('hybrid-status-text');
+            const indicator = document.getElementById('fp-active-indicator');
+
+            const strategyRad = document.querySelector('input[name="strategy_select"]:checked');
+            const strategy = strategyRad ? strategyRad.value : 'AI';
+            const isTest = document.getElementById('test-mode-toggle').checked;
+
+            isHybridEngaged = !isHybridEngaged;
+
+            if (isHybridEngaged) {
+                btn.innerText = "DISENGAGE SYSTEM";
+                if (isTest) {
+                    btn.className = "w-full py-4 rounded-lg font-black text-sm tracking-wider uppercase shadow-lg transform transition-all bg-yellow-500 text-black border border-yellow-600 hover:bg-yellow-400";
+                    statusEl.innerText = `TEST MODE ACTIVE: ${strategy}`;
+                    statusEl.className = "text-center text-[10px] font-mono text-yellow-500 mt-2 font-bold animate-pulse";
+                } else {
+                    btn.className = "w-full py-4 rounded-lg font-black text-sm tracking-wider uppercase shadow-lg transform transition-all bg-ai-cyan text-[#122a33] border border-cyan-400 hover:brightness-110";
+                    statusEl.innerText = `SYSTEM ACTIVE: ${strategy}`;
+                    statusEl.className = "text-center text-[10px] font-mono text-ai-cyan mt-2 font-bold";
+                }
+
+                if (strategy === 'FINGERPRINT') {
+                    indicator.innerText = isAutoMode ? "ACTIVE: AUTO-SEARCH" : `ACTIVE: BATCH #${selectedBatchIndex + 1}`;
+                    indicator.classList.remove('hidden');
+                }
+
+                if (document.getElementById('find-fingerprint-btn')) document.getElementById('find-fingerprint-btn').disabled = true;
+                if (document.getElementById('btn-scan')) document.getElementById('btn-scan').disabled = true;
+                if (document.getElementById('btn-auto-toggle')) document.getElementById('btn-auto-toggle').classList.add('opacity-50', 'cursor-not-allowed');
+                document.getElementById('batch-lock-msg').classList.remove('hidden');
+
+                refreshBatchListUI();
+            } else {
+                btn.innerText = "ENGAGE SYSTEM";
+                btn.className = "w-full py-4 rounded-lg font-black text-sm tracking-wider uppercase shadow-lg transform transition-all bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600";
+                statusEl.innerText = "SYSTEM STANDBY";
+                statusEl.className = "text-center text-[10px] font-mono text-gray-400 mt-2 font-bold";
+
+                document.getElementById('action-table-body').innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500 italic">Monitor Mode - No Actions</td></tr>`;
+                indicator.classList.add('hidden');
+
+                if (document.getElementById('find-fingerprint-btn')) document.getElementById('find-fingerprint-btn').disabled = false;
+                if (document.getElementById('btn-scan')) document.getElementById('btn-scan').disabled = false;
+                if (document.getElementById('btn-auto-toggle')) document.getElementById('btn-auto-toggle').classList.remove('opacity-50', 'cursor-not-allowed');
+                document.getElementById('batch-lock-msg').classList.add('hidden');
+
+                if (isAutoMode) {
+                    isAutoMode = false;
+                    updateAutoButtonUI();
+                }
+
+                refreshBatchListUI();
+                updateOpSummaryActions({ actions: [] });
+            }
+
+            let payload = { enabled: isHybridEngaged, strategy: strategy, test_mode: isTest };
+
+            if (isHybridEngaged && strategy === 'FINGERPRINT') {
+                if (isAutoMode) {
+                    payload.target_batch = null;
+                } else if (allRecommendations && allRecommendations.length > 0 && selectedBatchIndex >= 0) {
+                    payload.target_batch = allRecommendations[selectedBatchIndex];
+                }
+            }
+
+            try {
+                await fetch(`${API_URL}/api/autoloop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {
+                console.error("API Error", e);
+                if (!isStalled) isHybridEngaged = !isHybridEngaged;
+            }
+        }
+
+        function updateHybridDashboard(data) {
+            if (!data) return;
+
+            let strategyDisplay = "MONITOR";
+            if (data.active_strategy) {
+                strategyDisplay = data.active_strategy;
+            } else if (isHybridEngaged) {
+                const rad = document.querySelector('input[name="strategy_select"]:checked');
+                strategyDisplay = rad ? rad.value : "AI";
+            }
+
+            const tableHeader = document.querySelector("#panel-hybrid h3.text-xs.font-bold");
+            if (tableHeader) {
+                tableHeader.innerHTML = `Active Adjustments <span class="text-[10px] ml-2 px-2 py-0.5 rounded bg-blue-900 text-blue-200 uppercase tracking-wider border border-blue-800">${strategyDisplay} MODE</span>`;
+            }
+
+            const indicator = document.getElementById('fp-active-indicator');
+            if (data.match_score && String(data.match_score).includes('MANUAL') && data.target_timestamp) {
+                if (indicator.classList.contains('hidden')) {
+                    indicator.classList.remove('hidden');
+                    indicator.innerText = `ACTIVE: ${data.target_timestamp}`;
+                }
+            }
+
+            let conf = 0;
+            if (data.match_score && (String(data.match_score).includes('ACTIVE') || String(data.match_score).includes('MANUAL'))) {
+                conf = 100;
+            } else {
+                let rawMatch = parseFloat(data.match_score);
+                if (!isNaN(rawMatch) && rawMatch > 0) {
+                    conf = rawMatch;
+                } else if (data.soft_sensors && data.soft_sensors.sac_confidence_score) {
+                    conf = Math.round(data.soft_sensors.sac_confidence_score);
+                } else if (data.confidence) {
+                    conf = Math.round(data.confidence);
+                }
+            }
+
+            document.getElementById('conf-val').innerText = Math.round(conf);
+            document.getElementById('conf-bar').style.width = `${conf}%`;
+
+            const badge = document.getElementById('conf-badge');
+            if (conf > 80) {
+                document.getElementById('conf-bar').className = "conf-bar-fill bg-green-500";
+                badge.innerText = "HIGH TRUST";
+                badge.className = "px-2 py-1 bg-green-900 text-green-200 text-[10px] font-bold rounded uppercase";
+            } else if (conf > 50) {
+                document.getElementById('conf-bar').className = "conf-bar-fill bg-orange-500";
+                badge.innerText = "MODERATE";
+                badge.className = "px-2 py-1 bg-orange-900 text-orange-200 text-[10px] font-bold rounded uppercase";
+            } else {
+                document.getElementById('conf-bar').className = "conf-bar-fill bg-red-500";
+                badge.innerText = "LOW TRUST";
+                badge.className = "px-2 py-1 bg-red-900 text-red-200 text-[10px] font-bold rounded uppercase";
+            }
+
+            const tbody = document.getElementById('action-table-body');
+            tbody.innerHTML = '';
+
+            if (data.actions && data.actions.length > 0) {
+                data.actions.forEach(act => {
+                    const current = parseFloat(act.current_setpoint) || 0;
+                    const target = parseFloat(act.fingerprint_set_point) || 0;
+                    const safeDiff = target - current;
+                    let valClass = "text-white";
+                    let deltaHtml = `<span class="text-gray-400">-</span>`;
+
+                    if (Math.abs(safeDiff) > 0.01) {
+                        if (safeDiff > 0) {
+                            valClass = "text-blue-400";
+                            deltaHtml = `<span class="text-blue-400 font-bold">▲ ${safeDiff.toFixed(2)}</span>`;
+                        } else {
+                            valClass = "text-gray-400";
+                            deltaHtml = `<span class="text-gray-400 font-bold">▼ ${Math.abs(safeDiff).toFixed(2)}</span>`;
+                        }
+                    }
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="pl-3">
+                                <div class="font-bold text-white text-xs">${act.var_name}</div>
+                                <span class="action-reason text-[9px] font-bold text-gray-500">${act.reason || 'Optimizing'}</span>
+                            </td>
+                            <td class="font-mono text-xs text-gray-400">${current.toFixed(1)}</td>
+                            <td class="font-mono text-sm font-bold ${valClass}">${target.toFixed(1)}</td>
+                            <td class="text-xs">${deltaHtml}</td>
+                        </tr>`;
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500 italic">${isHybridEngaged ? "Searching..." : "Monitor Mode - No Actions"}</td></tr>`;
+            }
+
+            document.getElementById('last-update-time').innerText = new Date().toLocaleTimeString();
+            document.getElementById('hybrid-connection-dot').className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
+
+            if (data.match_score === "SAFETY-CLAMP") {
+                document.getElementById('safety-banner').classList.remove('hidden');
+            } else {
+                document.getElementById('safety-banner').classList.add('hidden');
+            }
+
+            const log = document.getElementById('hybrid-insight-log');
+            if (log) {
+                const now = new Date().toLocaleTimeString([], { hour12: false });
+                let msg = "";
+
+                if (data.match_score === "SAFETY-CLAMP") {
+                    msg = `<div class="text-red-500 font-bold">[${now}] GUARDIAN: Safety limit breached. Clamping output.</div>`;
+                } else if (data.active_strategy === "AI") {
+                    const conf = data.soft_sensors?.sac_confidence_score || 0;
+                    msg = `<div class="text-ai-cyan">[${now}] AI: Optimization active (Conf: ${Math.round(conf)}%)</div>`;
+                    if (data.actions && data.actions.length > 0) {
+                        msg += `<div class="pl-2 text-[10px]">Targeting: ${data.actions[0].var_name} → ${parseFloat(data.actions[0].fingerprint_set_point).toFixed(2)}</div>`;
+                    }
+                } else if (data.match_score) {
+                    msg = `<div class="text-green-400">[${now}] FINGERPRINT: Match Found (${data.match_score}%)</div>`;
+                    if (data.target_timestamp) {
+                        msg += `<div class="pl-2 text-gray-500 text-[10px]">Ref: ${data.target_timestamp}</div>`;
+                    }
+                    if (data.match_meta) {
+                        const m = data.match_meta;
+                        let details = [];
+                        if (m.tsr_at_match !== undefined) details.push(`TSR: ${m.tsr_at_match}%`);
+                        if (m.shc_at_match !== undefined) details.push(`SHC: ${m.shc_at_match}`);
+                        if (m.primary_value_at_match !== undefined) details.push(`Target: ${m.primary_value_at_match}`);
+                        if (details.length > 0) msg += `<div class="pl-2 text-[#ebf552] font-bold text-[10px]">Metrics: ${details.join(' | ')}</div>`;
+                    }
+                } else {
+                    msg = `<div class="text-gray-500">[${now}] SYSTEM: Calculating next cycle...</div>`;
+                }
+
+                if (data.soft_sensors) {
+                    const s = data.soft_sensors;
+                    let kpis = [];
+                    if (s.bzt_pred) kpis.push(`BZT:${Math.round(s.bzt_pred)}`);
+                    if (s.o2_pred) kpis.push(`O2:${parseFloat(s.o2_pred).toFixed(1)}`);
+                    if (kpis.length > 0) msg += `<div class="pl-2 text-yellow-500/80 font-bold text-[10px]">KPIs: ${kpis.join(' | ')}</div>`;
+                }
+
+                if (log.innerHTML.includes("Initializing insight monitor...")) {
+                    log.innerHTML = "";
+                }
+
+                const entry = document.createElement('div');
+                entry.className = "border-b border-white/5 pb-1 last:border-0";
+                entry.innerHTML = msg;
+
+                log.insertBefore(entry, log.firstChild);
+                while (log.children.length > 15) {
+                    log.removeChild(log.lastChild);
+                }
+            }
+        }
+
+        // =========================================================================
+        // MBRL PANEL
+        // =========================================================================
+        function updateMbrlUI(data) {
+            const list = document.getElementById('mbrl-action-list');
+            list.innerHTML = '';
+            let totalActivity = 0;
+
+            if (isHybridEngaged && data.actions && data.actions.length > 0) {
+                data.actions.forEach(a => {
+                    aiTargets[a.var_name] = parseFloat(a.fingerprint_set_point);
+                    const safeDiff = parseFloat(a.diff) || 0;
+                    totalActivity += Math.abs(safeDiff);
+                    const arrow = safeDiff > 0 ? "↑" : "↓";
+                    const colorClass = safeDiff > 0 ? "text-green-400" : "text-red-400";
+
+                    list.innerHTML += `
+                        <div class="p-2 border-b border-gray-700 hover:bg-white/5">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <div class="text-[10px] font-bold text-gray-300">${a.var_name}</div>
+                                    <div class="text-[8px] text-gray-500 italic font-bold">${a.reason || 'Optimizing'}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-mono text-sm font-black text-ai-cyan">${parseFloat(a.fingerprint_set_point).toFixed(2)}</div>
+                                    <div class="text-[8px] ${colorClass} font-bold">${arrow} ${Math.abs(safeDiff).toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+            } else {
+                list.innerHTML = `<div class="flex items-center justify-center h-full text-xs text-gray-500 font-bold">${isHybridEngaged ? "System Optimized" : "System Standby"}</div>`;
+            }
+
+            let finalScore = 0;
+            let match = parseFloat(data.match_score);
+            if (!isNaN(match) && match > 0) {
+                finalScore = match;
+            } else if (data.soft_sensors && data.soft_sensors.sac_confidence_score) {
+                finalScore = data.soft_sensors.sac_confidence_score;
+            } else if (data.confidence) {
+                finalScore = data.confidence;
+            }
+
+            if (mbrlUncertChart) {
+                const uncertaintyBase = Math.max(0.1, 1.0 - (finalScore / 100));
+                mbrlUncertChart.data.datasets[0].data = Array(20).fill(0).map(() => (Math.random() * 0.5 * uncertaintyBase) + (uncertaintyBase * 0.5));
+                mbrlUncertChart.data.datasets[0].backgroundColor = finalScore > 80 ? '#22c55e' : (finalScore > 50 ? '#f97316' : '#ef4444');
+                mbrlUncertChart.update('none');
+            }
+
+            const rewardEl = document.getElementById('mbrl-reward');
+            if (rewardEl) {
+                if (isHybridEngaged) {
+                    let dynamicReward = (finalScore / 10) + ((Math.random() - 0.5) * 0.3);
+                    if (totalActivity > 0) dynamicReward += Math.min(1.0, totalActivity * 0.05);
+                    dynamicReward = Math.max(0, Math.min(10, dynamicReward));
+                    rewardEl.innerText = dynamicReward.toFixed(2);
+                } else {
+                    rewardEl.innerText = "---";
+                }
+            }
+        }
+
+        function populateMbrlDropdowns(cfg) {
+            const sel = document.getElementById('mbrl-chart-select');
+            sel.innerHTML = '';
+            if (cfg.control_variables) {
+                Object.keys(cfg.control_variables).forEach((k, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = k;
+                    opt.text = k;
+                    sel.appendChild(opt);
+                    if (i === 0) activeMbrlVar = k;
+                });
+            }
+        }
+
+        function updateMbrlChartTarget(val) {
+            activeMbrlVar = val;
+            if (mbrlTrendChart) {
+                mbrlTrendChart.data.labels = [];
+                mbrlTrendChart.data.datasets[0].data = [];
+                mbrlTrendChart.data.datasets[1].data = [];
+                mbrlTrendChart.update();
+            }
+        }
+
+        // =========================================================================
+        // FINGERPRINT PANEL
+        // =========================================================================
+        function populateSettingsPanel(controls) {
+            const div = document.getElementById('settings-controls');
+            div.innerHTML = '';
+
+            Object.keys(controls).sort((a, b) => controls[a].priority - controls[b].priority).forEach(k => {
+                const s = controls[k];
+                const prColor = s.priority <= 3 ? 'text-yellow-400' : 'text-gray-500';
+
+                div.innerHTML += `
+                    <div class="bg-[#1a3842] p-2 rounded border border-[#476570] mb-2 hover:border-[#ebf552] transition-colors shadow-sm">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-xs font-bold text-white truncate">${k}</span>
+                            <span class="text-[10px] ${prColor} font-mono font-bold">PR:${s.priority}</span>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2">
+                            <div><span class="text-[8px] text-gray-500 block">L %</span><input id="c-${k}-L" type="number" value="${s.Lower}" class="compact-input w-full rounded text-center"></div>
+                            <div><span class="text-[8px] text-gray-500 block">H %</span><input id="c-${k}-H" type="number" value="${s.Higher}" class="compact-input w-full rounded text-center"></div>
+                            <div><span class="text-[8px] text-gray-500 block">MIN</span><input id="c-${k}-Min" type="number" value="${s.Min}" class="compact-input w-full rounded text-center"></div>
+                            <div><span class="text-[8px] text-gray-500 block">MAX</span><input id="c-${k}-Max" type="number" value="${s.Max}" class="compact-input w-full rounded text-center"></div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function initRealTimeList() {
+            const cDiv = document.getElementById('current-setpoints');
+            cDiv.innerHTML = '';
+
+            const add = (k, c) => `
+                <div class="flex justify-between py-1 border-b border-[#476570]">
+                    <span class="text-gray-400 truncate w-2/3 text-xs font-bold">${k}</span>
+                    <span id="live-val-${k.replace(/[^a-zA-Z0-9-_]/g, '')}" class="${c} font-mono text-xs font-bold">---</span>
+                </div>`;
+
+            if (currentModelConfig.control_variables) {
+                Object.keys(currentModelConfig.control_variables).sort().forEach(k => cDiv.innerHTML += add(k, 'text-white'));
+            }
+
+            if (currentModelConfig.indicator_variables) {
+                cDiv.innerHTML += `<div class="mt-3 mb-1 pt-1 border-t border-[#476570] text-[9px] font-bold text-blue-400 uppercase tracking-wider">Indicators</div>`;
+                Object.keys(currentModelConfig.indicator_variables).sort().forEach(k => cDiv.innerHTML += add(k, 'text-blue-300'));
+            }
+        }
+
+        async function findFingerprint() {
+            const btn = document.getElementById('find-fingerprint-btn');
+            const btn2 = document.getElementById('btn-scan');
+            const old = btn.innerText;
+
+            btn.innerHTML = '...';
+            btn.disabled = true;
+            if (btn2) {
+                btn2.innerHTML = '...';
+                btn2.disabled = true;
+            }
+
+            const payload = { previous_Time: 30, future_Time: 30, deviation: {} };
+            for (const k in controlDefaults) {
+                payload.deviation[k] = {
+                    Lower: parseFloat(document.getElementById(`c-${k}-L`)?.value || 98),
+                    Higher: parseFloat(document.getElementById(`c-${k}-H`)?.value || 102),
+                    Min: parseFloat(document.getElementById(`c-${k}-Min`)?.value || -9999),
+                    Max: parseFloat(document.getElementById(`c-${k}-Max`)?.value || 9999),
+                    priority: controlDefaults[k].priority
+                };
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/api/fingerprint`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+
+                if (json.data && json.data.length && json.data[0].fingerprint_Found !== "False") {
+                    allRecommendations = json.data;
+                    displayRecs(json.data);
+                    selectRec(0);
+                } else {
+                    document.getElementById('recommendations-list').innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-full space-y-2">
+                            <span class=\"text-sm text-gray-500 text-center\">No Matches</span>
+                            <button onclick=\"findFingerprint()\" class=\"px-3 py-1 bg-blue-900/30 text-blue-400 text-xs font-bold rounded hover:bg-blue-900/50\">Retry</button>
+                        </div>`;
+                }
+            } catch (e) {
+                alert("Error finding fingerprint.");
+            }
+
+            btn.innerHTML = old;
+            btn.disabled = false;
+            if (btn2) {
+                btn2.innerHTML = 'SCAN';
+                btn2.disabled = false;
+            }
+        }
+
+        function displayRecs(list) {
+            const div = document.getElementById('recommendations-list');
+            div.innerHTML = '';
+
+            list.forEach((r, i) => {
+                const score = r.match_score || 0;
+                const color = score > 90 ? 'text-green-400' : (score > 70 ? 'text-amber-400' : 'text-red-400');
+                div.innerHTML += `
+                    <div onclick="selectRec(${i})" class="p-3 rounded bg-[#1a3842] border border-[#476570] hover:border-[#ebf552] cursor-pointer transition-all shadow-sm group mb-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-blue-400 group-hover:text-blue-300 text-sm font-bold">BATCH #${i + 1}</span>
+                            <span class="${color} text-xs font-mono font-bold">${score}% MATCH</span>
+                        </div>
+                        <div class="text-[10px] text-gray-500 mt-1">${(r.fingerprint_timestamp || "").split(' ')[1]}</div>
+                    </div>`;
+            });
+        }
+
+        function selectRec(idx) {
+            if (isHybridEngaged) {
+                alert("Please DISENGAGE to change batch.");
+                return;
+            }
+            if (isAutoMode) {
+                isAutoMode = false;
+                updateAutoButtonUI();
+            }
+            selectedBatchIndex = idx;
+            refreshBatchListUI();
+
+            const rec = allRecommendations[idx];
+            const div = document.getElementById('recommended-setpoints');
+            div.innerHTML = '';
+            const rawActions = rec.actions || [];
+
+            if (rawActions.length === 0) {
+                div.innerHTML = `<div class="text-center text-gray-500 mt-6 italic">No Configured Setpoints Found.</div>`;
+                return;
+            }
+
+            const sortedActions = rawActions.sort((a, b) => (a.type === 'Control' ? -1 : 1));
+            sortedActions.forEach(a => {
+                const color = a.type === 'Control' ? 'text-blue-400' : 'text-gray-500';
+                const label = a.type === 'Control' ? a.var_name : `• ${a.var_name}`;
+                div.innerHTML += `
+                    <div class="flex justify-between py-1 border-b border-[#476570]">
+                        <span class="text-gray-400 text-xs font-bold truncate w-2/3" title="${a.var_name}">${label}</span>
+                        <span class="${color} font-bold text-sm font-mono">${parseFloat(a.fingerprint_set_point).toFixed(2)}</span>
+                    </div>`;
+            });
+
+            const colors = ['#ffffff', '#ebf552', '#22c55e', '#f97316', '#ef4444'];
+            const datasets = [];
+
+            // Sync the Operator Summary prediction data as well!
+            if (rec.fingerprint_prediction) {
+                opPredictionData = { ...rec.fingerprint_prediction };
+            }
+
+            (rec.top_variables || []).forEach((key, i) => {
+                const col = colors[i % 5];
+                const liveVals = rec.live_history[key] || [];
+                const liveData = liveVals.map((v, x) => ({ x: x - (liveVals.length - 1), y: v })).filter(pt => pt.x >= -5.5);
+                datasets.push({ label: key + " (Real)", data: liveData, borderColor: col, borderWidth: 2, pointRadius: 0, tension: 0.2 });
+
+                const predVals = rec.fingerprint_prediction[key] || [];
+                const predData = predVals.map((v, x) => ({ x: x, y: v })).filter(pt => pt.x <= 30);
+                if (liveData.length) predData.unshift({ x: 0, y: liveData[liveData.length - 1].y });
+                datasets.push({ label: key + " (Pred)", data: predData, borderColor: col, borderWidth: 2, borderDash: [4, 4], pointRadius: 0, tension: 0.2 });
+            });
+
+            if (timeSeriesChart) {
+                timeSeriesChart.data.datasets = datasets;
+                timeSeriesChart.update();
+            }
+
+            if (document.getElementById('dash-plotly')) {
+                const pDims = (rec.top_variables || []).map(k => {
+                    const curr = rec.live_history[k] ? rec.live_history[k].slice(-1)[0] : 0;
+                    const goal = parseFloat(rec.actions.find(a => a.var_name === k)?.fingerprint_set_point || 0);
+                    const pad = Math.abs(goal - curr) * 0.5 || goal * 0.1 || 1;
+                    return {
+                        range: [Math.min(curr, goal) - pad, Math.max(curr, goal) + pad],
+                        label: k,
+                        values: [curr, goal],
+                        tickfont: { color: 'white', size: 12 }
+                    };
+                });
+
+                Plotly.newPlot('dash-plotly', [{
+                    type: 'parcoords',
+                    line: { color: [0, 1], colorscale: [[0, '#3b82f6'], [1, '#10b981']], showscale: false },
+                    dimensions: pDims
+                }], {
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: 'white' },
+                    margin: { l: 50, r: 50, t: 60, b: 30 },
+                    annotations: [
+                        { x: 0, y: 1.15, xref: 'paper', yref: 'paper', text: '<b>— Real (Blue)</b>', showarrow: false, font: { color: '#3b82f6', size: 14 }, xanchor: 'left' },
+                        { x: 0.5, y: 1.15, xref: 'paper', yref: 'paper', text: '<b>— Goal (Green)</b>', showarrow: false, font: { color: '#10b981', size: 14 }, xanchor: 'left' }
+                    ]
+                }, { responsive: true, displayModeBar: false });
+            }
+
+            // Trigger updates on operator summary immediately
+            drawOpSummaryChart();
+            drawOpParallelChart();
+        }
+
+        function refreshBatchListUI() {
+            const list = document.getElementById('recommendations-list');
+            Array.from(list.children).forEach((c, i) => {
+                c.classList.remove('batch-active', 'batch-disabled');
+                if (i === selectedBatchIndex) c.classList.add('batch-active');
+                if (isHybridEngaged) c.classList.add('batch-disabled');
+            });
+        }
+
+        function toggleDashChart(mode) {
+            const t = document.getElementById('dash-chart-trend');
+            const p = document.getElementById('dash-chart-parallel');
+            if (mode === 'trend') {
+                t.classList.remove('hidden');
+                p.classList.add('hidden');
+            } else {
+                t.classList.add('hidden');
+                p.classList.remove('hidden');
+                Plotly.Plots.resize('dash-plotly');
+            }
+        }
+
+        // =========================================================================
+        // SIMULATOR PANEL
+        // =========================================================================
+        function initSimulatorControls() {
+            const c = document.getElementById('sim-controls-list');
+            const i = document.getElementById('sim-indicators-list');
+            const clr = document.getElementById('sim-color-var');
+
+            c.innerHTML = '';
+            i.innerHTML = '';
+            clr.innerHTML = '';
+
+            const add = (k, p) => {
+                p.innerHTML += `
+                    <label class="flex items-center space-x-2 cursor-pointer hover:bg-white/5 p-1.5 rounded transition-colors">
+                        <input type="checkbox" name="sim_${k}" id="chk_${k}" class="sim-check w-4 h-4 rounded border-gray-600 text-black focus:ring-0" value="${k}">
+                        <span class="text-xs text-gray-300 truncate select-none font-medium">${k}</span>
+                    </label>`;
+                clr.innerHTML += `<option value="${k}">${k}</option>`;
+            };
+
+            if (currentModelConfig.control_variables) {
+                Object.keys(currentModelConfig.control_variables).sort().forEach(k => add(k, c));
+            }
+            if (currentModelConfig.indicator_variables) {
+                Object.keys(currentModelConfig.indicator_variables).sort().forEach(k => add(k, i));
+            }
+        }
+
+        async function runSimulation() {
+            const checked = Array.from(document.querySelectorAll('.sim-check:checked')).map(cb => cb.value);
+            if (checked.length < 2) return alert("Select 2+ vars to compare");
+
+            const container = document.getElementById('plotly-container');
+
+            try {
+                const res = await fetch(`${API_URL}/api/history/visualize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tags: checked,
+                        minutes: document.getElementById('sim-time-window').value,
+                        color_by: document.getElementById('sim-color-var').value
+                    })
+                });
+                const json = await res.json();
+
+                json.layout.paper_bgcolor = 'rgba(0,0,0,0)';
+                json.layout.plot_bgcolor = 'rgba(0,0,0,0)';
+                json.layout.font = { color: 'white' };
+                Plotly.newPlot('plotly-container', json.data, json.layout, { responsive: true });
+            } catch (e) {
+                alert("Simulation Chart Error");
+            }
+        }
+
+        function toggleSimSidebar() {
+            const sb = document.getElementById('sim-sidebar');
+            const pa = document.getElementById('sim-plot-area');
+            const btn = document.getElementById('sim-toggle-btn');
+
+            if (isSidebarOpen) {
+                sb.classList.add('hidden');
+                sb.classList.remove('col-span-3');
+                pa.classList.replace('col-span-9', 'col-span-12');
+                btn.innerText = "▶";
+            } else {
+                sb.classList.remove('hidden');
+                sb.classList.add('col-span-3');
+                pa.classList.replace('col-span-12', 'col-span-9');
+                btn.innerText = "◀";
+            }
+            isSidebarOpen = !isSidebarOpen;
+            setTimeout(() => Plotly.Plots.resize('plotly-container'), 50);
+        }
+
+        // =========================================================================
+        // TRENDS PANEL
+        // =========================================================================
+        function initTrendDropdown() {
+            const sel = document.getElementById('trend-variable-select');
+            sel.innerHTML = '<option value="" disabled selected>Select...</option>';
+
+            const allTags = [...Object.keys(currentModelConfig.control_variables || {}), ...Object.keys(currentModelConfig.indicator_variables || {})].sort();
+            allTags.forEach(v => {
+                sel.innerHTML += `<option value="${v}">${v}</option>`;
+            });
+        }
+
+        async function loadTrendData(tag) {
+            activeTrendVariable = tag;
+            if (trendChart) {
+                trendChart.data = {
+                    labels: [],
+                    datasets: [{
+                        label: tag,
+                        data: [],
+                        borderColor: '#FFFFFF',
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }]
+                };
+                trendChart.update();
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/api/trend/history?tag=${tag}&minutes=60&t=${Date.now()}`);
+                const json = await res.json();
+
+                if (json.labels && json.labels.length > 0 && trendChart) {
+                    trendChart.data.labels = json.labels.map(l => new Date(l));
+                    trendChart.data.datasets[0].data = json.data;
+                    trendChart.update();
+                }
+            } catch (e) {
+                console.error("Trend Error", e);
+            }
+        }
+
+        // =========================================================================
+        // SOFT SENSOR PANEL
+        // =========================================================================
+        function initSoftSensorDropdown() {
+            const sel = document.getElementById('softsensor-select');
+            if (!sel) return;
+
+            sel.innerHTML = '';
+            const allVars = { ...currentModelConfig.control_variables, ...currentModelConfig.indicator_variables };
+
+            Object.keys(allVars).sort().forEach(k => {
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.text = k;
+                if (k === 'sinteringZoneTemp') opt.selected = true;
+                sel.appendChild(opt);
+            });
+
+            if (sel.options.length > 0) {
+                setTimeout(fetchSoftSensorPrediction, 500);
+            }
+        }
+
+        async function fetchSoftSensorPrediction() {
+            const container = document.getElementById('softsensor-chart-container');
+            container.innerHTML = '<div class="h-full flex items-center justify-center animate-pulse text-blue-400 font-bold">Predicting...</div>';
+
+            const sel = document.getElementById('softsensor-select');
+            try {
+                const response = await fetch(`${API_URL}/api/softsensor/predict?tag=${sel.value}`);
+                const result = await response.json();
+
+                const historyData = result.history.map(d => ({ x: new Date(d[0]), y: d[1] }));
+                const predictionData = result.prediction.map(d => ({ x: new Date(d[0]), y: d[1] }));
+                const fullPredictionLine = historyData.slice(-1).concat(predictionData);
+
+                const data = [
+                    { x: historyData.map(d => d.x), y: historyData.map(d => d.y), mode: 'lines', name: 'History', line: { color: '#ffffff', width: 2 } },
+                    { x: fullPredictionLine.map(d => d.x), y: fullPredictionLine.map(d => d.y), mode: 'lines', name: 'AI Prediction', line: { color: '#0099cc', dash: 'dash', width: 2 } }
+                ];
+
+                Plotly.newPlot(container, data, {
+                    title: `Predicted ${result.variable}`,
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: 'white' },
+                    margin: { t: 40, b: 30, l: 50, r: 20 },
+                    autosize: true
+                });
+            } catch (e) {
+                container.innerHTML = "API Error";
+            }
+        }
+
+        // =========================================================================
+        // SOFT SENSOR SIMULATOR PANEL
+        // =========================================================================
+        function initSoftSensorSim() {
+            const container = document.getElementById('sim-input-container');
+            const outSel = document.getElementById('sim-output-select');
+            if (!container) return;
+
+            // Save current selection to restore if re-syncing
+            const currentSel = outSel.value;
+
+            container.innerHTML = '';
+            outSel.innerHTML = '';
+
+            Object.keys(currentModelConfig.control_variables).sort().forEach(key => {
+                const conf = currentModelConfig.control_variables[key];
+                const safeId = key.replace(/[^a-zA-Z0-9]/g, '');
+
+                // Prioritize LIVE value over center midpoint
+                let val = ((conf.default_min + conf.default_max) * 0.5);
+                if (latestLiveValues[key] !== undefined) {
+                    val = parseFloat(latestLiveValues[key]);
+                }
+
+                // Clamp within config boundaries to prevent UI breakage
+                val = Math.max(conf.default_min, Math.min(conf.default_max, val));
+                const displayVal = val.toFixed(2);
+
+                container.innerHTML += `
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-1">
+                            <label class="text-xs font-bold text-gray-300 truncate" title="${key}">${key}</label>
+                            <span id="disp-${safeId}" class="text-xs font-mono font-bold text-[#ebf552]">${displayVal} ${conf.unit || ''}</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-[9px] text-gray-500 font-mono">${conf.default_min}</span>
+                            <input type="range" id="input-${safeId}" data-tag="${key}" min="${conf.default_min}" max="${conf.default_max}" step="0.1" value="${val}" oninput="document.getElementById('disp-${safeId}').innerText = parseFloat(this.value).toFixed(2) + ' ${conf.unit || ''}'" class="w-full h-2 bg-[#122a33] border border-[#476570] rounded-lg appearance-none cursor-pointer">
+                            <span class="text-[9px] text-gray-500 font-mono">${conf.default_max}</span>
+                        </div>
+                    </div>`;
+            });
+
+            const allVars = { ...currentModelConfig.indicator_variables, ...currentModelConfig.control_variables };
+            Object.keys(allVars).forEach(k => {
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.text = k;
+                outSel.appendChild(opt);
+            });
+
+            // Restore previous selection or pick defaults
+            if (currentSel && allVars[currentSel]) {
+                outSel.value = currentSel;
+            } else if (allVars['Motor 1 Current']) {
+                outSel.value = 'Motor 1 Current';
+            } else if (allVars['sinteringZoneTemp']) {
+                outSel.value = 'sinteringZoneTemp';
+            }
+        }
+
+        async function runSoftSensorSim() {
+            const container = document.getElementById('sim-chart-container');
+            container.innerHTML = '<div class="h-full flex items-center justify-center animate-pulse text-blue-400 font-bold">Simulating...</div>';
+
+            const controls = {};
+
+            // Re-fetch using data-tag to correctly bypass IDs with spaces replaced
+            document.querySelectorAll('#sim-input-container input[type="range"]').forEach(input => {
+                controls[input.getAttribute('data-tag')] = parseFloat(input.value);
+            });
+
+            try {
+                const res = await fetch(`${API_URL}/api/softsensor/simulate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        controls: controls,
+                        target_variable: document.getElementById('sim-output-select').value
+                    })
+                });
+                const result = await res.json();
+
+                Plotly.newPlot(container, [
+                    { x: result.timestamps, y: result.baseline, mode: 'lines', name: 'Current Baseline', line: { color: '#476570', dash: 'dash' } },
+                    { x: result.timestamps, y: result.simulated, mode: 'lines', name: 'Simulated Adjustment', line: { color: '#ebf552', width: 3 } }
+                ], {
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: 'white' },
+                    margin: { t: 40, b: 30, l: 50, r: 20 },
+                    autosize: true,
+                    legend: { orientation: 'h', y: 1.1 }
+                });
+            } catch (e) {
+                container.innerHTML = "Simulation Failed. Ensure backend is running.";
+            }
+        }
+
+        // =========================================================================
+        // OPERATOR SUMMARY PANEL
+        // =========================================================================
+        function initOpSummary() {
+            if (!currentModelConfig) return;
+
+            // 1. Populate KPIs dynamically
+            const kpiRow = document.getElementById('op-kpi-row');
+            if (kpiRow && currentModelConfig.kpi_tags) {
+                kpiRow.innerHTML = '';
+
+                const hasKpiSummary = Object.values(currentModelConfig.kpi_tags).some(v => v.op_summary !== undefined);
+
+                Object.keys(currentModelConfig.kpi_tags).forEach(kpiName => {
+                    const tagInfo = currentModelConfig.kpi_tags[kpiName];
+
+                    if (hasKpiSummary && tagInfo.op_summary !== true && tagInfo.op_summary !== "true") return;
+
+                    kpiRow.innerHTML += `
+                        <div class="flex-1 bg-[#1a3842] border border-[#2d4a54] p-2 flex flex-col justify-between rounded min-w-[120px] max-h-[50px]">
+                            <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none truncate" title="${kpiName}">${kpiName}</span>
+                            <div class="flex items-baseline gap-1 mt-1">
+                                <span class="text-lg font-black text-white font-mono leading-none" id="op3-kpi-${tagInfo.tag.replace(/[^a-zA-Z0-9]/g, '')}">---</span>
+                                <span class="text-[8px] text-[#ebf552] font-bold uppercase leading-none">${tagInfo.unit || ''}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // Trend Icon helper
+            const getTrendBtn = (tag) => `
+                <button onclick="toggleOpTrend('${tag}')" id="op-trend-btn-${tag.replace(/[^a-zA-Z0-9]/g, '')}" class="text-gray-500 hover:text-[#ebf552] transition-colors focus:outline-none shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                </button>
+            `;
+
+            // Row builder
+            const buildRow = (tag, alias) => {
+                const safeId = tag.replace(/[^a-zA-Z0-9]/g, '');
+                return `
+                <tr class="hover:bg-white/5 transition-colors">
+                    <td class="p-1.5 text-gray-300 overflow-hidden align-middle">
+                        <div class="flex items-center gap-1.5 w-full">
+                            ${getTrendBtn(tag)}
+                            <span class="truncate flex-1 min-w-0 text-[11px] font-bold text-white" title="${tag}">${alias}</span>
+                        </div>
+                    </td>
+                    <td class="p-1.5 font-mono text-[11px] text-right text-gray-300 font-black truncate align-middle" id="op3-cur-${safeId}">---</td>
+                    <td class="p-1.5 font-mono text-[11px] text-right font-black truncate align-middle" id="op3-nsp-${safeId}">---</td>
+                    <td class="p-1.5 font-mono text-[11px] text-right text-[#ebf552] font-black pr-2 truncate align-middle" id="op3-tgt-${safeId}">---</td>
+                </tr>`;
+            };
+
+            // 2. Populate Setpoints Tables dynamically or fallback
+            const tKiln = document.getElementById('op-table-kiln');
+            const tPh = document.getElementById('op-table-phpc');
+            const tCooler = document.getElementById('op-table-cooler');
+
+            if (tKiln) tKiln.innerHTML = '';
+            if (tPh) tPh.innerHTML = '';
+            if (tCooler) tCooler.innerHTML = '';
+
+            const ctrlVars = currentModelConfig.control_variables || {};
+            const hasCtrlSummary = Object.values(ctrlVars).some(v => v.op_summary !== undefined);
+
+            if (hasCtrlSummary) {
+                Object.keys(ctrlVars).forEach(tag => {
+                    const v = ctrlVars[tag];
+                    if (v.op_summary === true || v.op_summary === "true") {
+                        const combined = (tag + " " + (v.description || "")).toLowerCase();
+                        const alias = v.description || tag;
+
+                        if (combined.includes('cooler') || combined.includes('grate') || combined.includes('grille') || combined.includes('filter')) {
+                            if (tCooler) tCooler.innerHTML += buildRow(tag, alias);
+                        } else if (combined.includes('fan') || combined.includes('calciner') || combined.includes('cyclone') || combined.includes('flap') || combined.includes('gate') || combined.includes('tert') || combined.includes('quench')) {
+                            if (tPh) tPh.innerHTML += buildRow(tag, alias);
+                        } else {
+                            if (tKiln) tKiln.innerHTML += buildRow(tag, alias);
+                        }
+                    }
+                });
+            } else {
+                // Legacy Fallback
+                if (tKiln) {
+                    tKiln.innerHTML =
+                        buildRow("Weighfeeder Mass Flow", "Kiln feed") +
+                        buildRow("Speed Actual Value", "Kiln speed") +
+                        buildRow("Solid Fossil Mass flow Actual MainBurner", "Petcoke main") +
+                        buildRow("Solid Alternative Mass Flow Actual MainBurner", "RDF main bur") +
+                        buildRow("Liquid Alternative Mass Flow Actual MainBurner", "RIP (liquids) n");
+                }
+                if (tPh) {
+                    tPh.innerHTML =
+                        buildRow("ID Fan Speed", "ID fan speed") +
+                        buildRow("Solid Fossil Mass Flow Actual CalcinerBurner", "Petcoke calciner") +
+                        buildRow("Mass Flow Actual Solid 1 CalcinerBurner", "RDF calciner 1") +
+                        buildRow("Mass Flow Actual Solid 2 CalcinerBurner", "RDF calciner 2") +
+                        buildRow("Position flap", "Tert. air damp") +
+                        buildRow("Dividing gate position Cyclone 3", "Dividing gate pos") +
+                        buildRow("Fan Gas Flow", "Quench fan flow");
+                }
+                if (tCooler) {
+                    tCooler.innerHTML =
+                        buildRow("Speed Actual Stroke central grille 1", "Cooler grate C1") +
+                        buildRow("Speed Actual Stroke central grille 2", "Cooler grate C2") +
+                        buildRow("Speed Actual Stroke left grille", "Cooler grate L") +
+                        buildRow("Speed Actual Stroke right grille", "Cooler grate R") +
+                        buildRow("Filter Fan Motor Speed", "Cooler BF fan");
+                }
+            }
+
+            // 3. Populate Live Sensors dynamically
+            const liveSensorsList = document.getElementById('op-live-sensors-list');
+            if (liveSensorsList && currentModelConfig.indicator_variables) {
+                liveSensorsList.innerHTML = '';
+                const indVars = currentModelConfig.indicator_variables;
+                const hasIndSummary = Object.values(indVars).some(v => v.op_summary !== undefined);
+
+                Object.keys(indVars).sort().forEach(tag => {
+                    if (hasIndSummary && indVars[tag].op_summary !== true && indVars[tag].op_summary !== "true") return;
+
+                    const safeId = tag.replace(/[^a-zA-Z0-9]/g, '');
+                    liveSensorsList.innerHTML += `
+                        <div class="flex justify-between items-center border-b border-[#2d4a54] py-1.5 hover:bg-white/5 transition-colors pl-1 pr-2">
+                            <div class="flex items-center gap-1.5 text-gray-400 flex-1 min-w-0 overflow-hidden">
+                                ${getTrendBtn(tag)}
+                                <span class="truncate text-[11px] font-bold text-gray-300" title="${tag}">${tag}</span>
+                            </div>
+                            <div class="font-mono text-[11px] text-white font-black bg-[#122a33] px-1.5 py-0.5 rounded shadow-inner ml-1 shrink-0" id="op3-live-${safeId}">---</div>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        function toggleOpTrend(tag) {
+            const idx = opActiveTrends.indexOf(tag);
+            const safeId = tag.replace(/[^a-zA-Z0-9]/g, '');
+            const btns = document.querySelectorAll(`#op-trend-btn-${safeId}`);
+
+            if (idx > -1) {
+                opActiveTrends.splice(idx, 1);
+                btns.forEach(b => b.classList.remove('trend-active', 'text-[#ebf552]'));
+            } else {
+                if (opActiveTrends.length >= 6) {
+                    return alert("Maximum 6 trends can be displayed at once.");
+                }
+                opActiveTrends.push(tag);
+
+                if (!opHistoryData[tag]) {
+                    opHistoryData[tag] = [];
+                }
+                btns.forEach(b => b.classList.add('trend-active', 'text-[#ebf552]'));
+            }
+            drawOpSummaryChart();
+            drawOpParallelChart();
+        }
+
+        function clearOpTrends() {
+            opActiveTrends = [];
+            document.querySelectorAll('.trend-active').forEach(b => {
+                b.classList.remove('trend-active', 'text-[#ebf552]')
+            });
+            drawOpSummaryChart();
+            drawOpParallelChart();
+        }
+
+        function updateOpSummary(data) {
+            const now = Date.now();
+
+            if (currentModelConfig && currentModelConfig.kpi_tags) {
+                Object.keys(currentModelConfig.kpi_tags).forEach(kpiName => {
+                    const tag = currentModelConfig.kpi_tags[kpiName].tag;
+                    if (data[tag] !== undefined) {
+                        const el = document.getElementById(`op3-kpi-${tag.replace(/[^a-zA-Z0-9]/g, '')}`);
+                        if (el) {
+                            el.innerText = parseFloat(data[tag]).toFixed(1);
+                        }
+                    }
+                });
+            }
+
+            Object.keys(data).forEach(tag => {
+                if (tag.includes('timestamp')) return;
+
+                const safeId = tag.replace(/[^a-zA-Z0-9]/g, '');
+                const val = parseFloat(data[tag]).toFixed(2);
+
+                const curEl = document.getElementById(`op3-cur-${safeId}`);
+                if (curEl) curEl.innerText = val;
+
+                const liveEl = document.getElementById(`op3-live-${safeId}`);
+                if (liveEl) liveEl.innerText = val;
+
+                if (!opHistoryData[tag]) {
+                    opHistoryData[tag] = [];
+                }
+
+                opHistoryData[tag].push({ ts: now, val: parseFloat(data[tag]) });
+                opHistoryData[tag] = opHistoryData[tag].filter(pt => (now - pt.ts) <= 16 * 60000); // 16 min buffer
+            });
+
+            drawOpSummaryChart();
+            drawOpParallelChart();
+        }
+
+        function updateOpSummaryActions(data) {
+            if (!data) return;
+            const insightsBox = document.getElementById('op-summary-insights');
+
+            if (insightsBox) {
+                const timeStr = new Date().toLocaleTimeString([], { hour12: false });
+                let msg = "";
+
+                if (data.match_score === "SAFETY-CLAMP") {
+                    msg = `<span class="text-red-500 font-bold">[${timeStr}] GUARDIAN: Safety limit breached. Clamping output.</span>`;
+                } else if (data.active_strategy === "AI") {
+                    const conf = data.soft_sensors?.sac_confidence_score || 0;
+                    msg = `<span class="text-ai-cyan">[${timeStr}] AI: Optimization active (Conf: ${Math.round(conf)}%)</span>`;
+                    if (data.actions && data.actions.length > 0) {
+                        msg += ` <span class="text-gray-600">|</span> <span class="text-[10px] text-gray-300">Targeting: ${data.actions[0].var_name} &rarr; ${parseFloat(data.actions[0].fingerprint_set_point).toFixed(2)}</span>`;
+                    }
+                } else if (data.match_score) {
+                    msg = `<span class="text-green-400">[${timeStr}] FINGERPRINT: Match Found (${data.match_score}%)</span>`;
+                    if (data.target_timestamp) {
+                        msg += ` <span class="text-gray-600">|</span> <span class="text-gray-400 text-[10px]">Ref: ${data.target_timestamp}</span>`;
+                    }
+                    if (data.match_meta) {
+                        const m = data.match_meta;
+                        let details = [];
+                        if (m.tsr_at_match !== undefined) details.push(`TSR: ${m.tsr_at_match}%`);
+                        if (m.shc_at_match !== undefined) details.push(`SHC: ${m.shc_at_match}`);
+                        if (m.primary_value_at_match !== undefined) details.push(`Target: ${m.primary_value_at_match}`);
+                        if (details.length > 0) msg += ` <span class="text-gray-600">|</span> <span class="text-[#ebf552] font-bold text-[10px]">Metrics: ${details.join(', ')}</span>`;
+                    }
+                } else {
+                    msg = `<span class="text-gray-500">[${timeStr}] SYSTEM: Calculating next cycle...</span>`;
+                }
+
+                if (data.soft_sensors) {
+                    const s = data.soft_sensors;
+                    let kpis = [];
+                    if (s.bzt_pred) kpis.push(`BZT:${Math.round(s.bzt_pred)}`);
+                    if (s.o2_pred) kpis.push(`O2:${parseFloat(s.o2_pred).toFixed(1)}`);
+                    if (kpis.length > 0) msg += ` <span class="text-gray-600">|</span> <span class="text-yellow-500/80 font-bold text-[10px]">KPIs: ${kpis.join(', ')}</span>`;
+                }
+
+                // Exclusively overwrite with the single latest status to prevent growth
+                insightsBox.innerHTML = msg;
+            }
+
+            opPredictionData = {}; // Clear previous predictions
+
+            // 1. Load predictions from selected manual batch (if in Fingerprint mode)
+            const isFpMode = data.active_strategy === 'FINGERPRINT' || (isHybridEngaged && document.querySelector('input[name="strategy_select"]:checked')?.value === 'FINGERPRINT');
+            if (isFpMode && allRecommendations.length > 0 && selectedBatchIndex >= 0) {
+                const rec = allRecommendations[selectedBatchIndex];
+                if (rec && rec.fingerprint_prediction) {
+                    Object.keys(rec.fingerprint_prediction).forEach(k => {
+                        opPredictionData[k] = rec.fingerprint_prediction[k];
+                    });
+                }
+            }
+
+            // 2. Override with incoming socket data (especially for AUTO Fingerprint or AI rollouts)
+            if (data.fingerprint_prediction) {
+                Object.keys(data.fingerprint_prediction).forEach(k => {
+                    opPredictionData[k] = data.fingerprint_prediction[k];
+                });
+            }
+
+            if (data.actions && data.actions.length > 0) {
+                window.currentAIVars = data.actions.map(a => a.var_name);
+                window.latestActions = data.actions;
+
+                data.actions.forEach(act => {
+                    const safeId = act.var_name.replace(/[^a-zA-Z0-9]/g, '');
+                    const nspEl = document.getElementById(`op3-nsp-${safeId}`);
+                    const tgtEl = document.getElementById(`op3-tgt-${safeId}`);
+
+                    // 1. Get the exact live value currently shown on the UI
+                    const liveCurr = latestLiveValues[act.var_name] !== undefined ?
+                        parseFloat(latestLiveValues[act.var_name]) :
+                        parseFloat(act.current_setpoint || 0);
+
+                    // 2. Final 100% target from AI
+                    const finalTarget = parseFloat(act.fingerprint_set_point || 0);
+
+                    // 3. Retrieve Nudge limit (force positive fallback)
+                    const varConf = currentModelConfig.control_variables[act.var_name] || {};
+                    const maxNudge = Math.abs(parseFloat(varConf.nudge_speed)) || 0.05;
+
+                    // 4. STRICTLY BOUND the nudge to be between liveCurr and finalTarget
+                    let nudgedTarget = liveCurr;
+                    if (finalTarget > liveCurr) {
+                        // Moving UP: add nudge, but do not exceed final target
+                        nudgedTarget = Math.min(liveCurr + maxNudge, finalTarget);
+                    } else if (finalTarget < liveCurr) {
+                        // Moving DOWN: subtract nudge, but do not drop below final target
+                        nudgedTarget = Math.max(liveCurr - maxNudge, finalTarget);
+                    }
+
+                    // 5. Draw Arrows based strictly on the diff
+                    const nudgeDiff = nudgedTarget - liveCurr;
+
+                    if (nspEl) {
+                        // Use 0.001 precision to prevent tiny floating point math errors from triggering arrows
+                        if (Math.abs(nudgeDiff) > 0.001) {
+                            if (nudgeDiff > 0) {
+                                nspEl.innerHTML = `<span class="text-blue-400 font-bold">▲ ${nudgedTarget.toFixed(2)}</span>`;
+                            } else {
+                                nspEl.innerHTML = `<span class="text-gray-400 font-bold">▼ ${nudgedTarget.toFixed(2)}</span>`;
+                            }
+                        } else {
+                            // If difference is essentially zero, we are at the target
+                            nspEl.innerHTML = `<span class="text-gray-500">-</span>`;
+                        }
+                    }
+                    if (tgtEl) tgtEl.innerText = finalTarget.toFixed(2);
+
+                    // 6. Fallback Prediction Array
+                    if (!opPredictionData[act.var_name]) {
+                        let fakePred = [];
+                        for (let m = 0; m <= 15; m++) {
+                            if (m <= 5) fakePred.push(liveCurr + (finalTarget - liveCurr) * (m / 5));
+                            else fakePred.push(finalTarget);
+                        }
+                        opPredictionData[act.var_name] = fakePred;
+                    }
+                });
+            } else {
+                window.currentAIVars = [];
+                window.latestActions = [];
+                document.querySelectorAll('[id^="op3-nsp-"]').forEach(el => el.innerHTML = `<span class="text-gray-500">-</span>`);
+                document.querySelectorAll('[id^="op3-tgt-"]').forEach(el => el.innerText = "---");
+            }
+
+            drawOpSummaryChart();
+            drawOpParallelChart();
+        }
+
+        function drawOpSummaryChart() {
+            if (!opSummaryChartCanvas) return;
+
+            const now = Date.now();
+            const colors = ['#ebf552', '#3b82f6', '#10b981', '#f97316', '#a855f7', '#ec4899', '#ffffff', '#22d3ee'];
+            const datasets = [];
+
+            // STRICTLY ONLY variables manually selected by the user
+            const varsToPlot = [...opActiveTrends];
+
+            varsToPlot.slice(0, 8).forEach((tag, idx) => {
+                const color = colors[idx % colors.length];
+                let histData = [];
+
+                if (opHistoryData[tag]) {
+                    histData = opHistoryData[tag].map(pt => ({
+                        x: -((now - pt.ts) / 60000),
+                        y: pt.val
+                    })).filter(pt => pt.x >= -15);
+                }
+
+                datasets.push({
+                    label: tag + ' (Real)',
+                    data: histData,
+                    borderColor: color,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.1
+                });
+
+                // Guarantee a prediction line even for indicator variables lacking a backend array
+                let predDataRaw = opPredictionData[tag];
+                if (!predDataRaw || predDataRaw.length === 0) {
+                    const curr = latestLiveValues[tag] !== undefined ? parseFloat(latestLiveValues[tag]) : (histData.length > 0 ? histData[histData.length - 1].y : 0);
+                    predDataRaw = [];
+                    for (let m = 0; m <= 15; m++) {
+                        predDataRaw.push(curr); // Flatline forward projection for indicators without AI targets
+                    }
+                }
+
+                let predData = predDataRaw.map((val, minFromNow) => ({
+                    x: minFromNow,
+                    y: val
+                })).filter(pt => pt.x <= 15);
+
+                if (histData.length > 0) {
+                    predData.unshift({ x: 0, y: histData[histData.length - 1].y }); // Connect line smoothly
+                }
+
+                datasets.push({
+                    label: tag + ' (Pred)',
+                    data: predData,
+                    borderColor: color,
+                    borderWidth: 2,
+                    borderDash: [4, 4],
+                    pointRadius: 0,
+                    tension: 0.1
+                });
+            });
+
+            opSummaryChartCanvas.data.datasets = datasets;
+            opSummaryChartCanvas.update('none');
+        }
+
+        function drawOpParallelChart() {
+            if (!document.getElementById('op-dash-plotly')) return;
+            if (document.getElementById('op-dash-chart-parallel').classList.contains('hidden')) return;
+
+            // Use manually selected trends if available, otherwise fallback to active AI variables so the chart isn't empty
+            let varsToPlot = opActiveTrends.length >= 2 ? opActiveTrends : (window.currentAIVars || []);
+            if (!varsToPlot.length) return;
+
+            const pDims = varsToPlot.slice(0, 5).map(k => {
+                const liveVals = opHistoryData[k] || [];
+                const curr = liveVals.length ? liveVals[liveVals.length - 1].val : 0;
+
+                let goal = curr;
+                if (opPredictionData[k] && opPredictionData[k].length > 0) {
+                    goal = opPredictionData[k][opPredictionData[k].length - 1]; // End of prediction
+                } else {
+                    const goalAct = (window.latestActions || []).find(a => a.var_name === k);
+                    if (goalAct) goal = parseFloat(goalAct.fingerprint_set_point || 0);
+                }
+
+                const pad = Math.abs(goal - curr) * 0.5 || Math.abs(goal) * 0.1 || 1;
+
+                return {
+                    range: [Math.min(curr, goal) - pad, Math.max(curr, goal) + pad],
+                    label: k.length > 15 ? k.substring(0, 12) + '...' : k,
+                    values: [curr, goal],
+                    tickfont: { color: 'white', size: 10 }
+                };
+            });
+
+            Plotly.react('op-dash-plotly', [{
+                type: 'parcoords',
+                line: { color: [0, 1], colorscale: [[0, '#3b82f6'], [1, '#10b981']], showscale: false },
+                dimensions: pDims
+            }], {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: 'white' },
+                margin: { l: 30, r: 30, t: 30, b: 20 },
+                annotations: [
+                    { x: 0, y: 1.15, xref: 'paper', yref: 'paper', text: '<b>— Real (Blue)</b>', showarrow: false, font: { color: '#3b82f6', size: 10 }, xanchor: 'left' },
+                    { x: 0.5, y: 1.15, xref: 'paper', yref: 'paper', text: '<b>— Goal (Green)</b>', showarrow: false, font: { color: '#10b981', size: 10 }, xanchor: 'left' }
+                ]
+            });
+        }
+
+        function toggleOpDashChart(mode) {
+            const t = document.getElementById('op-dash-chart-trend');
+            const p = document.getElementById('op-dash-chart-parallel');
+            const btnT = document.getElementById('btn-op-pred-trend');
+            const btnP = document.getElementById('btn-op-pred-parallel');
+
+            if (mode === 'trend') {
+                t.classList.remove('hidden');
+                p.classList.add('hidden');
+                btnT.className = "text-[8px] font-bold px-2 py-0.5 bg-[#ebf552] text-[#122a33] rounded hover:brightness-110 transition-colors";
+                btnP.className = "text-[8px] font-bold px-2 py-0.5 border border-gray-500 text-gray-400 rounded hover:bg-white/5 transition-colors";
+            } else {
+                t.classList.add('hidden');
+                p.classList.remove('hidden');
+                btnT.className = "text-[8px] font-bold px-2 py-0.5 border border-gray-500 text-gray-400 rounded hover:bg-white/5 transition-colors";
+                btnP.className = "text-[8px] font-bold px-2 py-0.5 bg-[#ebf552] text-[#122a33] rounded hover:brightness-110 transition-colors";
+                drawOpParallelChart();
+            }
+        }
+
+        // =========================================================================
+        // CONFIGURATION PANEL
+        // =========================================================================
+        async function saveConfig() {
+            await fetch(`${API_URL}/api/config`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: document.getElementById('config-editor').value
+            });
+            location.reload();
+        }
+
+        async function syncData() {
+            fetch(`${API_URL}/api/history/sync`, { method: 'POST' });
+            alert("Sync Started");
+        }
+
+        function toggleConfigView() {
+            const isDev = document.getElementById('config-ui-toggle').checked;
+            document.getElementById('config-table-view').classList.toggle('hidden', isDev);
+            document.getElementById('config-json-view').classList.toggle('hidden', !isDev);
+        }
+
+        function populateConfigUI(cfg) {
+            const bindContainer = document.getElementById('config-ai-bindings');
+            bindContainer.innerHTML = '';
+
+            if (cfg.ai_bindings) {
+                const b = cfg.ai_bindings;
+                const fields = [
+                    { label: "Primary Control", key: "primary_control_actor", val: b.primary_control_actor },
+                    { label: "Primary Target", key: "primary_prediction_target", val: b.primary_prediction_target }
+                ];
+                fields.forEach(f => {
+                    bindContainer.innerHTML += `
+                        <div>
+                            <label class="text-[9px] font-bold text-gray-500 uppercase block mb-1">${f.label}</label>
+                            <input type="text" id="bind-${f.key}" value="${f.val}" class="w-full bg-[#122a33] border border-[#476570] text-white text-xs p-2 rounded outline-none focus:border-[#ebf552]">
+                        </div>`;
+                });
+            }
+
+            const ctrlBody = document.getElementById('config-controls-body');
+            ctrlBody.innerHTML = '';
+
+            if (cfg.control_variables) {
+                Object.keys(cfg.control_variables).sort().forEach(key => {
+                    const c = cfg.control_variables[key];
+                    const isChecked = c.aipc ? 'checked' : '';
+                    ctrlBody.innerHTML += `
+                        <tr class="hover:bg-white/5 transition-colors group">
+                            <td class="px-4 py-2 font-bold text-gray-300">${key}</td>
+                            <td class="px-2 py-2 text-gray-500 font-mono">${c.unit || ''}</td>
+                            <td class="px-2 py-2"><input type="number" data-tag="${key}" data-field="default_min" value="${c.default_min}" class="w-16 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-blue-300"></td>
+                            <td class="px-2 py-2"><input type="number" data-tag="${key}" data-field="default_max" value="${c.default_max}" class="w-16 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-blue-300"></td>
+                            <td class="px-2 py-2"><input type="number" data-tag="${key}" data-field="priority" value="${c.priority}" class="w-12 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-yellow-500 font-bold"></td>
+                            <td class="px-2 py-2"><input type="number" step="0.01" data-tag="${key}" data-field="nudge_speed" value="${c.nudge_speed || 0.05}" class="w-14 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-gray-400"></td>
+                            <td class="px-4 py-2 text-center"><input type="checkbox" data-tag="${key}" data-field="aipc" ${isChecked} class="w-4 h-4 accent-[#ebf552]"></td>
+                        </tr>`;
+                });
+            }
+
+            const optTargetSel = document.getElementById('config-opt-target');
+            optTargetSel.innerHTML = '';
+
+            const allTags = [...Object.keys(cfg.control_variables || {}), ...Object.keys(cfg.indicator_variables || {})].sort();
+            allTags.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t;
+                opt.text = t;
+                if (cfg.optimization_settings && t === cfg.optimization_settings.target_variable) {
+                    opt.selected = true;
+                }
+                optTargetSel.appendChild(opt);
+            });
+
+            if (cfg.optimization_settings) {
+                document.getElementById('config-opt-setpoint').value = cfg.optimization_settings.target_setpoint;
+            }
+        }
+
+        async function saveTableConfig() {
+            const cfg = JSON.parse(JSON.stringify(currentModelConfig));
+
+            if (cfg.ai_bindings) {
+                cfg.ai_bindings.primary_control_actor = document.getElementById('bind-primary_control_actor').value;
+                cfg.ai_bindings.primary_prediction_target = document.getElementById('bind-primary_prediction_target').value;
+            }
+
+            document.querySelectorAll('#config-controls-body input').forEach(input => {
+                const tag = input.getAttribute('data-tag');
+                const field = input.getAttribute('data-field');
+                if (cfg.control_variables[tag]) {
+                    if (input.type === 'checkbox') {
+                        cfg.control_variables[tag][field] = input.checked;
+                    } else {
+                        cfg.control_variables[tag][field] = parseFloat(input.value);
+                    }
+                }
+            });
+
+            if (!cfg.optimization_settings) cfg.optimization_settings = {};
+            cfg.optimization_settings.target_variable = document.getElementById('config-opt-target').value;
+            cfg.optimization_settings.target_setpoint = parseFloat(document.getElementById('config-opt-setpoint').value);
+
+            try {
+                const res = await fetch(`${API_URL}/api/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(cfg)
+                });
+                if (res.ok) {
+                    alert("Configuration Updated Successfully!");
+                    location.reload();
+                } else {
+                    alert("Failed to update configuration.");
+                }
+            } catch (e) {
+                alert("Error saving configuration: " + e.message);
+            }
+        }
+    </script>
+</body>
+
+</html>

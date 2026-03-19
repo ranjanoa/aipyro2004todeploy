@@ -1,0 +1,16 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.parquet
+.env
+.idea/
+logs/
+files/logs/
+files/data/
+
+# Runtime state files
+files/json/engine_state.json
+files/json/system_state.json
+files/json/socket.json
+files/json/previous_Fingerprint.json
