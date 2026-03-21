@@ -1,0 +1,133 @@
+
+--- 2026-03-19T23:48:06.767903 ---
+Phase: Standard
+Rejected at tag: Liquid Alternative Mass Flow Actual MainBurner
+Current RT value: 2807.2502
+Target range: [2105.4377 to 2000.0000]
+Config Limits: [0.0 to 2000.0]
+
+--- 2026-03-21T09:41:57.222717 ---
+Phase: Standard
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 19.8255
+Target range: [14.8691 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T09:41:57.916561 ---
+Phase: Steering (Relaxed)
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 19.8255
+Target range: [11.0000 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T09:46:32.000207 ---
+Phase: Standard
+Rejected at tag: Liquid Alternative Mass Flow Actual MainBurner
+Current RT value: 2606.6252
+Target range: [1954.9689 to 2000.0000]
+Config Limits: [0.0 to 2000.0]
+
+--- 2026-03-21T09:46:32.768856 ---
+Phase: Steering (Relaxed)
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 19.9714
+Target range: [11.0000 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T13:44:26.315878 ---
+Phase: Standard
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 20.9065
+Target range: [15.6799 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T13:44:27.018786 ---
+Phase: Steering (Relaxed)
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 20.9065
+Target range: [11.0000 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T13:47:51.884839 ---
+Phase: Standard
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 20.8181
+Target range: [15.6136 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T13:47:52.501622 ---
+Phase: Steering (Relaxed)
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 20.8181
+Target range: [11.0000 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T13:55:17.469948 ---
+Phase: Standard
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 12.4800
+Target range: [11.0000 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T13:55:18.138829 ---
+Phase: Steering (Relaxed)
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 12.4800
+Target range: [11.0000 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T13:58:41.448025 ---
+Phase: Standard
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 12.4586
+Target range: [11.0000 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T13:58:42.010625 ---
+Phase: Steering (Relaxed)
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 12.4586
+Target range: [11.0000 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T14:01:24.378089 ---
+Phase: Standard
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 12.4722
+Target range: [11.0000 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T14:01:24.836596 ---
+Phase: Steering (Relaxed)
+Rejected at tag: Kiln filling degree (%) SP
+Current RT value: 12.4722
+Target range: [11.0000 to 13.0000]
+Config Limits: [11.0 to 13.0]
+
+--- 2026-03-21T14:49:41.753721 ---
+Phase: Standard
+Rejected at tag: Liquid Alternative Mass Flow Actual MainBurner
+Current RT value: 3003.8776
+Target range: [2252.9082 to 2000.0000]
+Config Limits: [0.0 to 2000.0]
+
+--- 2026-03-21T14:54:44.479035 ---
+Phase: Standard
+Rejected at tag: Liquid Alternative Mass Flow Actual MainBurner
+Current RT value: 2699.9136
+Target range: [2024.9352 to 2000.0000]
+Config Limits: [0.0 to 2000.0]
+
+--- 2026-03-21T15:00:16.015584 ---
+Phase: Standard
+Rejected at tag: Liquid Alternative Mass Flow Actual MainBurner
+Current RT value: 2726.5413
+Target range: [2044.9060 to 2000.0000]
+Config Limits: [0.0 to 2000.0]
+
+--- 2026-03-21T15:03:01.509808 ---
+Phase: Standard
+Rejected at tag: Liquid Alternative Mass Flow Actual MainBurner
+Current RT value: 2780.7600
+Target range: [2085.5700 to 2000.0000]
+Config Limits: [0.0 to 2000.0]

@@ -59,7 +59,7 @@ import config
 import database
 import process_model
 import fingerprint_engine
-import formula_processor
+ # formula_processor removed
 
 # Wrap AI import in try/except so it doesn't crash if you are only testing Fingerprint
 try:
@@ -188,8 +188,11 @@ def background_data_emitter():
                     latest = df.iloc[-1].to_dict()
 
                     # 🚀 LIVE CALCULATION: Evaluate all formulas for current state
-                    calculated_vals = formula_processor.evaluate_formulas(latest, calc_vars_cfg, controls_cfg, indicators_cfg)
-                    latest.update(calculated_vals)
+                    # Correct order: (state_map, controls_cfg, indicators_cfg, calc_vars_cfg)
+                    calculated_vals = process_model.evaluate_formulas(latest, controls_cfg, indicators_cfg, calc_vars_cfg)
+                    if calculated_vals:
+                        latest.update(calculated_vals)
+                        print(f"DEBUG Emitter: Merged {len(calculated_vals)} calc vars.")
 
                     # Convert timestamps for JSON serialization
                     if config.TIMESTAMP_COLUMN in latest:
@@ -209,7 +212,7 @@ def automated_control_loop():
     - Fast Cycle (2s): Sends Heartbeat (Watchdog) to PLC.
     - Slow Cycle (10s): Runs AI/Fingerprint calculations and executes Writes.
     """
-    logger.info("🧠 Autopilot Thread Started")
+    logger.info("Autopilot Thread Started")
     socketio.sleep(5)
 
     loop_counter = 0
@@ -310,6 +313,14 @@ def automated_control_loop():
                 if not real_df.empty:
                     recommendation = None
 
+                    # Load config for fingerprint and AI
+                    conf = process_model.load_model_config()
+                    calc_cfg = conf.get('calculated_variables', {})
+                    controls_cfg = conf.get('control_variables', {})
+                    indicators_cfg = conf.get('indicator_variables', {})
+                    deviation_config = conf.get('deviation_config', {})
+                    raw_state = real_df.iloc[-1].to_dict() # Get the latest state as a dictionary
+
                     if current_mode == 2:  # FINGERPRINT
                         recommendation = fingerprint_engine.get_live_fingerprint_action(real_df)
                     elif current_mode == 1:  # AI
@@ -331,9 +342,13 @@ def automated_control_loop():
                         tag_map = process_model.get_tag_to_name_map()
                         mapped_state = {tag_map.get(k, k): v for k, v in real_df.iloc[-1].to_dict().items()}
                         
-                        calc_actions = formula_processor.generate_calculated_actions(
+                        calc_actions = process_model.generate_calculated_actions(
                             raw_actions, mapped_state, controls_cfg, indicators_cfg, calc_cfg
                         )
+                        
+                        # Replace naive generic actions with the fully calculated ones
+                        calc_names = {c['var_name'] for c in calc_actions}
+                        recommendation['actions'] = [a for a in recommendation['actions'] if a.get('var_name') not in calc_names]
                         recommendation['actions'].extend(calc_actions)
 
                         score = recommendation.get('match_score', '0')

@@ -1,4 +1,4 @@
-import pandas as pd
+﻿import pandas as pd
 import numpy as np
 import logging
 import os
@@ -18,8 +18,6 @@ try:
     import config
 except ImportError:
     config = None
-
- # formula_processor removed (integrated into process_model)
 
 
 # ==============================================================================
@@ -116,7 +114,7 @@ def get_active_strategy(conf=None):
     strategies = conf.get('strategies', {})
     if strategy_name and strategy_name in strategies:
         strat = strategies[strategy_name]
-        engine_logger.info(f"[STRATEGY] Active: {strategy_name} — {strat.get('description', '')}")
+        engine_logger.info(f"[STRATEGY] Active: {strategy_name} ÔÇö {strat.get('description', '')}")
         return strategy_name, strat
     return 'DEFAULT', {}
 
@@ -124,65 +122,19 @@ def get_active_strategy(conf=None):
 # ==============================================================================
 # 2. LOW-LEVEL HELPERS
 # ==============================================================================
-def ensure_calculated_columns(df):
-    """
-    Checks if df is missing any calculated columns defined in model_config.json.
-    If missing, materializes them and saves the updated DF back to CSV and Parquet.
-    """
-    if df is None or df.empty: return df
-    
-    conf = get_model_config_safe()
-    calc_cfg = conf.get('calculated_variables', {})
-    if not calc_cfg: return df
-    
-    # Check for missing columns
-    # We use friendly_name as the column identifier
-    missing = [cfg.get('friendly_name') for k,cfg in calc_cfg.items() 
-               if cfg.get('friendly_name') not in df.columns and cfg.get('friendly_name')]
-    
-    if missing:
-        engine_logger.info(f"⚡ Missing calculated columns in history: {missing}. Materializing...")
-        controls_cfg = conf.get('control_variables', {})
-        indicators_cfg = conf.get('indicator_variables', {})
-        
-        # Enrich
-        enriched_df = process_model.materialize_df(df, controls_cfg, indicators_cfg, calc_cfg)
-        
-        # Save back to CSV
-        csv_path = get_config_path()
-        parquet_path = csv_path.replace('.csv', '.parquet')
-        try:
-            enriched_df.to_csv(csv_path, index=False)
-            engine_logger.info(f"✅ CSV enriched and saved: {csv_path}")
-            
-            # Also update Parquet so next load is instant
-            enriched_df.to_parquet(parquet_path, engine='pyarrow')
-            engine_logger.info(f"✅ Parquet cache updated: {parquet_path}")
-        except Exception as e:
-            engine_logger.error(f"❌ Failed to save enriched dataset: {e}")
-            
-        return enriched_df
-    
-    return df
-
-
 def robust_read_csv(file_path):
     parquet_path = file_path.replace('.csv', '.parquet')
     try:
-        # 1. Try Loading from Parquet
         if os.path.exists(parquet_path):
             csv_mtime = os.path.getmtime(file_path) if os.path.exists(file_path) else 0
             parquet_mtime = os.path.getmtime(parquet_path)
-            
-            if csv_mtime <= parquet_mtime:
+            if csv_mtime > parquet_mtime:
+                engine_logger.info("Detected newly updated CSV file! Recompiling Parquet cache...")
+            else:
                 df = pd.read_parquet(parquet_path)
                 engine_logger.info(f"Loaded Parquet file instantly with {len(df)} rows.")
-                
-                # Double check if any NEW calculated variables were added to config since last save
-                enriched_df = ensure_calculated_columns(df)
-                return enriched_df
+                return df
 
-        # 2. Fallback to CSV
         if not os.path.exists(file_path):
             engine_logger.warning(f"Data file not found at: {file_path} or {parquet_path}")
             return pd.DataFrame()
@@ -190,9 +142,6 @@ def robust_read_csv(file_path):
         engine_logger.info("Reading raw CSV. This will take a moment before optimizing...")
         df = pd.read_csv(file_path)
         df.columns = [str(c).strip() for c in df.columns]
-
-        # Ensure all calculated columns are present before caching
-        df = ensure_calculated_columns(df)
 
         try:
             df.to_parquet(parquet_path, engine='pyarrow')
@@ -226,7 +175,7 @@ def map_csv_headers(hist_df, controls_cfg, indicators_cfg):
     return df
 
 
-def map_tags_to_friendly_names(current_state_map, controls_cfg, indicators_cfg, calc_vars_cfg=None):
+def map_tags_to_friendly_names(current_state_map, controls_cfg, indicators_cfg):
     mapped_state = current_state_map.copy()
     all_vars = {}
     if controls_cfg: all_vars.update(controls_cfg)
@@ -238,8 +187,7 @@ def map_tags_to_friendly_names(current_state_map, controls_cfg, indicators_cfg, 
         if key in opc_lookup: mapped_state[opc_lookup[key]] = value
     
     # NEW: Evaluate formulas after mapping raw tags
-    if calc_vars_cfg:
-        mapped_state.update(process_model.evaluate_formulas(mapped_state, controls_cfg, indicators_cfg, calc_vars_cfg))
+    mapped_state = evaluate_formulas(mapped_state, controls_cfg, indicators_cfg)
     return mapped_state
 
 
@@ -400,7 +348,7 @@ def calculate_dynamic_weights(current_state, base_weights):
                 if fuel_tag:
                     new_weights[fuel_tag] = fuel_w
 
-                # Feed increase is secondary — only applied if fuel is already trending down
+                # Feed increase is secondary ÔÇö only applied if fuel is already trending down
                 # and priority_action allows it
                 if feed_tag and priority == 'fuel_first' and not fuel_first_only:
                     new_weights[feed_tag] = feed_w
@@ -408,7 +356,7 @@ def calculate_dynamic_weights(current_state, base_weights):
                     new_weights[feed_tag] = feed_w
 
                 engine_logger.info(
-                    f"KILN HOT ({bzt:.0f}°C): Fuel weight={fuel_w} applied first. "
+                    f"KILN HOT ({bzt:.0f}┬░C): Fuel weight={fuel_w} applied first. "
                     f"Feed weight applied: {not fuel_first_only}")
 
         # --- RULE 2: COLD KILN ---
@@ -416,37 +364,21 @@ def calculate_dynamic_weights(current_state, base_weights):
             if lim.get('bzt_cold', 0) > bzt > 500:
                 if fuel_tag:
                     new_weights[fuel_tag] = bias.get('cold_kiln_fuel_weight', 15.0)
-                engine_logger.info(f"KILN COLD ({bzt:.0f}°C): Adjusted weights for High Fuel")
+                engine_logger.info(f"KILN COLD ({bzt:.0f}┬░C): Adjusted weights for High Fuel")
 
-        # --- RULE 3: LOW O2 → ID FAN (disabled by default per operator instruction) ---
+        # --- RULE 3: LOW O2 ÔåÆ ID FAN (disabled by default per operator instruction) ---
         if rules_enabled.get('low_o2_id_fan_enabled', False):
             if o2 < lim.get('o2_min', 9999) and o2 > 0.1:
                 if fan_tag:
                     new_weights[fan_tag] = bias.get('low_o2_fan_weight', 0)
                 engine_logger.info(f"LOW O2 ({o2:.1f}%): Adjusted weights for High Draft")
 
-        # --- RULE 5: STRATEGY OPTIMIZATION (PROACTIVE TARGETS) ---
-        # Read the active strategy's optimization goals (e.g., TSR MAX)
-        # and merge them into the scoring weights.
-        strategy_name, strat = get_active_strategy(full_conf)
-        opt_cfg = strat.get('optimisation_target', {})
-        if opt_cfg:
-            # Primary Tag (e.g., % TSR Kiln Inst)
-            primary = opt_cfg.get('primary_tag')
-            if primary:
-                # We use a positive bias to "hunt" for higher values of the primary KPI.
-                # Default weight of 5.0 makes it a significant driver of the search score.
-                new_weights[primary] = opt_cfg.get('primary_weight', 5.0)
-                engine_logger.info(f"STRATEGY BIAS: Added primary target '{primary}' weight={new_weights[primary]}")
-
-            # Co-targets (e.g., Specific Heat Consumption -> -0.4)
-            for ct in opt_cfg.get('co_targets', []):
-                if not isinstance(ct, dict): continue   # skip inline comments/strings
-                ctag = ct.get('tag')
-                if not ctag or ctag.startswith('_'): continue
-                cweight = ct.get('weight', 0.0)
-                new_weights[ctag] = cweight
-                engine_logger.info(f"STRATEGY BIAS: Added co-target '{ctag}' weight={cweight}")
+        # --- RULE 4: LOW C4 TEMP ---
+        if rules_enabled.get('low_c4_temp_enabled', True):
+            if c4_temp < lim.get('c4_temp_min', 9999) and c4_temp > 400:
+                if calc_tag:
+                    new_weights[calc_tag] = bias.get('low_c4_calciner_weight', 8.0)
+                engine_logger.info(f"LOW C4 TEMP ({c4_temp:.0f}┬░C): Adjusted weights for High Calciner Fuel")
 
     except Exception as e:
         engine_logger.error(f"Weight Bias Error: {e}")
@@ -470,7 +402,7 @@ def calculate_match_percentage(current_state, row, controls_cfg):
             curr_val = float(current_state.get(tag, 0))
             hist_val = align_magnitude(row.get(tag, 0), curr_val)
 
-            # Use heat input (flow × CV) for fuel tags if pairing is available
+            # Use heat input (flow ├ù CV) for fuel tags if pairing is available
             if tag in fuel_pairing:
                 curr_val = get_heat_input(tag, curr_val, current_state, conf)
                 hist_val_raw = float(row.get(tag, 0))
@@ -487,35 +419,19 @@ def calculate_match_percentage(current_state, row, controls_cfg):
 
 
 def _calculate_core_score(row, current_state, controls_cfg, weights=None, active_constraints=None, inv_cov=None,
-                          live_slopes=None, penalty_weight=1000.0, is_advanced=False, active_tags_ordered=None):
+                          live_slopes=None, penalty_weight=1000.0, is_advanced=False):
     score = 0.0
     now = pd.Timestamp.now()
     ts_col = get_timestamp_col()
     conf = get_model_config_safe()
-    scoring_cfg = conf.get('scoring_settings', {})
-    aggression = float(scoring_cfg.get('search_aggression', 1.0))
-    fuel_pairing = conf.get('fuel_calorific_pairing', {})
 
-    # 1. OPTIMIZATION SCORE (Gains / Hunters)
-    # Use heat content (flow × CV) for fuel tags, not raw mass flow.
-    # This ensures the AI compares actual thermal energy, not just tonnage.
     if weights:
-        for tag, w in weights.items():
-            if tag in fuel_pairing:
-                # Use heat content = mass flow × calorific value at the historical timestamp
-                cv_tag = fuel_pairing[tag]
-                hist_cv = float(row.get(cv_tag, 0))
-                hist_flow = float(row.get(tag, 0))
-                tag_val = hist_flow * hist_cv if hist_cv > 0 else hist_flow
-            else:
-                tag_val = float(row.get(tag, 0))
-            score += tag_val * w * aggression
+        for tag, w in weights.items(): score += (row.get(tag, 0) * w)
 
-    # 2. DISTANCE PENALTY (Similarity / Safety)
     if isinstance(current_state, dict):
         dist_sum = 0.0
 
-        # Determine which variables to include in distance calculation
+        # Robust check for source of tags/props
         if active_constraints and hasattr(active_constraints, 'items'):
             source_items = active_constraints.items()
         elif controls_cfg and hasattr(controls_cfg, 'items'):
@@ -523,105 +439,51 @@ def _calculate_core_score(row, current_state, controls_cfg, weights=None, active
         else:
             source_items = []
 
-        # Vectorized Mahalanobis Support (Bug #1 Fix: iterate active_tags_ordered, not source_items dict)
-        use_mahalanobis = is_advanced and inv_cov is not None and mahalanobis is not None
-        mahal_tags = active_tags_ordered if active_tags_ordered else []
+        for tag, props in source_items:
+            if is_advanced:
+                try:
+                    curr_row_val = float(row.get(tag, 0))
+                    user_min = float(props.get('min', props.get('Min', props.get('default_min', -9e9))))
+                    user_max = float(props.get('max', props.get('Max', props.get('default_max', 9e9))))
+                    if curr_row_val < user_min or curr_row_val > user_max:
+                        return -999999.9
+                except:
+                    pass
 
-        if use_mahalanobis and mahal_tags:
-            u_vec, v_vec = [], []
-            for tag in mahal_tags:   # strict ordered list — dimensions guaranteed to match inv_cov
-                curr_val = float(current_state.get(tag, 0))
-                hist_val = align_magnitude(row.get(tag, 0), curr_val)
-                if tag in fuel_pairing:
-                    curr_val = get_heat_input(tag, curr_val, current_state, conf)
-                    hist_cv_tag = fuel_pairing[tag]
-                    hist_cv = float(row.get(hist_cv_tag, 0))
-                    if hist_cv > 0:
-                        hist_val = float(row.get(tag, 0)) * hist_cv
-                u_vec.append(curr_val)
-                v_vec.append(hist_val)
-            try:
-                m_dist = mahalanobis(u_vec, v_vec, inv_cov)
-                if np.isnan(m_dist) or m_dist > 500:
-                    use_mahalanobis = False # Matrix is mathematically absurd, fallback to Euclidean
-                else:
-                    dist_sum = m_dist ** 2
-                    engine_logger.debug(f"[SCORE] Mahalanobis distance={m_dist:.4f}")
-            except Exception:
-                use_mahalanobis = False  # Fallback to Z-score Euclidean
+            prio = int(props.get('priority', 3))
+            if not is_advanced and prio != 1: continue
 
-        # Fallback: Z-Score Normalised Weighted Euclidean Distance (Bug #5 Fix)
-        # Normalise every variable to its historical population scale before comparing.
-        # Prevents mixing temperatures (1350°C) with fuel flows (5 t/h) in raw Euclidean.
-        if not use_mahalanobis or dist_sum == 0.0:
-            for tag, props in source_items:
-                prio = int(props.get('priority', 3))
-                if not is_advanced and prio != 1: continue
-                if prio == 0 or props.get('is_calculated', False) or 'formula' in props: continue
+            # NEW: Priority 0 means the variable is used for FILTERING but NOT for similarity SCORING.
+            # This follows the user's logic to exclude derived variables from the actual matching math.
+            if prio == 0: continue
 
-                curr_val = float(current_state.get(tag, 0))
-                hist_val = align_magnitude(row.get(tag, 0), curr_val)
+            curr_val = float(current_state.get(tag, 0))
+            hist_val = align_magnitude(row.get(tag, 0), curr_val)
 
-                if tag in fuel_pairing:
-                    curr_val = get_heat_input(tag, curr_val, current_state, conf)
-                    hist_cv_tag = fuel_pairing[tag]
-                    hist_cv = float(row.get(hist_cv_tag, 0))
-                    if hist_cv > 0:
-                        hist_val = float(row.get(tag, 0)) * hist_cv
+            # Use specific heat input for fuel tags
+            if tag in conf.get('fuel_calorific_pairing', {}):
+                curr_val = get_heat_input(tag, curr_val, current_state, conf)
+                hist_val_raw = float(row.get(tag, 0))
+                cv_tag = conf['fuel_calorific_pairing'][tag]
+                hist_cv = float(row.get(cv_tag, 0))
+                if hist_cv > 0:
+                    hist_val = hist_val_raw * hist_cv
 
-                if curr_val != 0:
-                    multipliers = scoring_cfg.get('priority_multipliers', {'1': 10.0, '2': 5.0})
-                    weight = float(multipliers.get(str(prio), 1.0)) if is_advanced else 1.0
-                    raw_delta = abs(curr_val - hist_val) / abs(curr_val)
-                    # Safety Cap: Prevent division-by-near-zero explosion. Max 300% distance penalty per tag.
-                    normalised_delta = min(raw_delta, 3.0) 
-                    dist_sum += (normalised_delta ** 2) * weight
+            if curr_val != 0:
+                scoring_cfg = conf.get('scoring_settings', {})
+                multipliers = scoring_cfg.get('priority_multipliers', {'1': 10.0, '2': 5.0})
+                weight = float(multipliers.get(str(prio), 1.0)) if is_advanced else 1.0
+                dist_sum += ((abs(curr_val - hist_val) / curr_val) ** 2) * weight
 
+        scoring_cfg = conf.get('scoring_settings', {})
         p_weight = scoring_cfg.get('distance_penalty_weight', penalty_weight)
-        # Cap absolute total penalty to prevent wiping out scores past the -900000 gate
-        total_penalty = dist_sum * p_weight
-        if total_penalty > 800000:
-            total_penalty = 800000 
-        score -= total_penalty
+        score -= (dist_sum * p_weight)
 
-    # 3. SLOPE / DIRECTIONAL TREND BONUS (Bug #3 Fix)
-    # Reward fingerprints that were moving in the SAME direction as the current plant state.
-    # Penalty for fingerprints moving in the OPPOSITE direction (physically dangerous).
-    if live_slopes and is_advanced:
-        slope_cfg = conf.get('scoring_settings', {})
-        slope_bonus = float(slope_cfg.get('trend_match_bonus', 50.0))
-        slope_penalty = float(slope_cfg.get('trend_mismatch_penalty', 100.0))
-        slope_bonus_total = 0.0
-        slope_penalty_total = 0.0
-        for tag, live_slope in live_slopes.items():
-            if tag in row:
-                # Compute historical slope: difference vs preceding row
-                # Using a simple proxy: if hist value > current it was rising, else falling
-                curr_val = float(current_state.get(tag, 0))
-                hist_val = float(row.get(tag, curr_val))
-                hist_direction = hist_val - curr_val  # positive = historically was higher
-                if live_slope != 0 and hist_direction != 0:
-                    if (live_slope > 0) == (hist_direction > 0):
-                        slope_bonus_total += slope_bonus
-                    else:
-                        slope_penalty_total += slope_penalty
-        score += slope_bonus_total - slope_penalty_total
-        if slope_bonus_total > 0 or slope_penalty_total > 0:
-            engine_logger.debug(f"[SCORE] Slope bonus={slope_bonus_total:.0f} / penalty={slope_penalty_total:.0f}")
-
-    # 4. AGE PENALTY + RECENCY BOOST
-    # Recent data is preferred. age_penalty_per_day decays scores for old fingerprints.
-    # recency_boost gives a flat bonus for fingerprints within the last N days.
     if ts_col in row and pd.notnull(row[ts_col]):
         try:
             age_days = (now - row[ts_col]).total_seconds() / 86400.0
-            age_penalty = scoring_cfg.get('age_penalty_per_day', 0.5)
+            age_penalty = conf.get('scoring_settings', {}).get('age_penalty_per_day', 0.05)
             score -= (age_days * age_penalty)
-            # Flat bonus for very recent fingerprints (e.g., last 14 days)
-            recency_days = float(scoring_cfg.get('recency_boost_days', 14))
-            recency_bonus = float(scoring_cfg.get('recency_boost_value', 200))
-            if age_days <= recency_days:
-                score += recency_bonus
         except:
             pass
     return score
@@ -654,8 +516,7 @@ def apply_golden_filter(hist_df):
         engine_logger.info(f"[PREFILTER] Applying strategy '{strategy_name}' prefilter ({len(prefilter)} tags)")
 
     for tag, limits in (prefilter or {}).items():
-        # Skip metadata/comment keys used in strategy templates (prefixed with _ or named 'comment')
-        if tag.startswith('_') or tag == 'comment': continue
+        if tag == 'comment': continue
         if tag not in hist_df.columns: continue
         if not isinstance(limits, dict): continue
         lo = limits.get('min', None)
@@ -678,20 +539,13 @@ def get_mahalanobis_matrix(hist_df, active_cols):
     global CACHE_COV
     if mahalanobis is None or pinv is None: return None
     try:
-        # Bug #2 Fix: Key on hash of sorted tag list, not just the count.
-        # A same-sized but different set of tags would previously return a corrupt matrix.
-        cache_key = hash(tuple(sorted(active_cols)))
-        if CACHE_COV is not None and isinstance(CACHE_COV, tuple) and CACHE_COV[0] == cache_key:
-            return CACHE_COV[1]
+        if CACHE_COV is not None and isinstance(CACHE_COV, np.ndarray) and CACHE_COV.shape[0] == len(active_cols):
+            return CACHE_COV
         sub_df = hist_df[active_cols].dropna()
         if sub_df.empty: return None
         cov_matrix = np.cov(sub_df.values.T)
-        # Mathematical Safety: Ridge Regularization
-        # Prevents pseudo-inverse explosion if a sensor has 0 variance (flatlined in history)
-        if cov_matrix.ndim == 2:
-            np.fill_diagonal(cov_matrix, cov_matrix.diagonal() + 1e-6)
         inv_cov = pinv(cov_matrix)
-        CACHE_COV = (cache_key, inv_cov)  # Store as (key, matrix) tuple
+        CACHE_COV = inv_cov
         return inv_cov
     except Exception:
         return None
@@ -703,11 +557,8 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
 
     initial_count = len(historical_df)
     
-    if HAS_PROCESS_MODEL and process_model:
-        all_vars_cfg = {**process_model.get_control_variables(), **process_model.get_indicator_variables()}
-    else:
-        full_config = get_model_config_safe()
-        all_vars_cfg = {**full_config.get('control_variables', {}), **full_config.get('indicator_variables', {})}
+    full_config = process_model.load_model_config()
+    all_vars_cfg = {**full_config.get('control_variables', {}), **full_config.get('indicator_variables', {})}
     
     engine_logger.info(f"[SEARCH] Starting optimization on total dataset of {initial_count} rows.")
 
@@ -737,11 +588,10 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
         for tag, strategy in frontend_strategy.items():
             if tag not in phase_history.columns: continue
             try:
-                # NEW: Skip Priority 0 variables AND calculated variables from filtering phase per user objective.
+                # NEW: Skip Priority 0 variables from filtering phase per user objective.
                 # These are "calculated-only" and should not restrict history search.
-                cfg_var = all_vars_cfg.get(tag, {})
-                prio = int(cfg_var.get('priority', 3))
-                if prio == 0 or cfg_var.get('is_calculated', False) or 'formula' in cfg_var:
+                prio = int(all_vars_cfg.get(tag, {}).get('priority', 3))
+                if prio == 0:
                     continue
 
                 # Robustly extract min/max from strategy config
@@ -749,19 +599,12 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
                 abs_max = float(strategy.get('custom_max', strategy.get('default_max', strategy.get('max', 9e9))))
                 cur_val = float(current_state.get(tag, 0))
 
-                # Bug #4 Fix: Apply Absolute Tolerance Bounds
-                # A 25% tolerance on an 800 rpm fan is ±200 rpm (physically too wide).
-                # If tolerance_abs is defined, restrict the target delta mathematically.
-                abs_band = float(strategy.get('tolerance_abs', cfg_var.get('tolerance_abs', 9e9)))
-
                 if cur_val != 0:
-                    delta_pct = abs(cur_val * tol_pct)
-                    eff_delta = min(delta_pct, abs_band)
-                    tol_min = cur_val - eff_delta
-                    tol_max = cur_val + eff_delta
+                    tol_min = cur_val * (1 - tol_pct)
+                    tol_max = cur_val * (1 + tol_pct)
                 else:
-                    tol_min = -min(tol_pct, abs_band)
-                    tol_max = min(tol_pct, abs_band)
+                    tol_min = -tol_pct
+                    tol_max = tol_pct
 
                 eff_min = max(abs_min, tol_min)
                 eff_max = min(abs_max, tol_max)
@@ -789,10 +632,6 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
             final_matches = phase_history
             # Also capture the constraints used for scoring
             for tag, strategy in frontend_strategy.items():
-                cfg_var = all_vars_cfg.get(tag, {})
-                prio = int(cfg_var.get('priority', 3))
-                if prio == 0 or cfg_var.get('is_calculated', False) or 'formula' in cfg_var:
-                    continue
                 active_constraints[tag] = strategy.copy()
                 active_constraints[tag]['eff_tol'] = tol_pct
             break
@@ -805,29 +644,21 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
         # Ensure we have some constraints for scoring even if search failed
         if not active_constraints:
             for tag, strategy in frontend_strategy.items():
-                cfg_var = all_vars_cfg.get(tag, {})
-                prio = int(cfg_var.get('priority', 3))
-                if prio == 0 or cfg_var.get('is_calculated', False) or 'formula' in cfg_var:
-                    continue
                 active_constraints[tag] = strategy.copy()
                 active_constraints[tag]['eff_tol'] = 1.0
 
     valid_history = final_matches
     scoring_tags = []
-    if HAS_PROCESS_MODEL and process_model:
-        all_vars_cfg = {**process_model.get_control_variables(), **process_model.get_indicator_variables()}
-    else:
-        conf = get_model_config_safe()
-        all_vars_cfg = {**conf.get('control_variables', {}), **conf.get('indicator_variables', {})}
+    conf = get_model_config_safe()
+    ctrls = conf.get('control_variables', {})
+    inds = conf.get('indicator_variables', {})
+    all_vars_cfg = {**ctrls, **inds}
 
     for t in frontend_strategy.keys():
         if t in valid_history.columns:
-            # Skip tags that have priority 0 or are calculated (excluded from matching score)
-            cfg_var = all_vars_cfg.get(t, {})
-            prio = int(cfg_var.get('priority', 3))
-            is_calc = cfg_var.get('is_calculated', False) or 'formula' in cfg_var
-            
-            if prio == 0 or is_calc:
+            # Skip tags that have priority 0 (excluded from matching score by user request)
+            prio = int(all_vars_cfg[t].get('priority', 3)) if t in all_vars_cfg else 3
+            if prio == 0:
                 continue
             scoring_tags.append(t)
 
@@ -837,88 +668,24 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
     if ts_col in valid_history.columns:
         valid_history[ts_col] = pd.to_datetime(valid_history[ts_col], errors='coerce')
 
-    # Bug #3 Fix: Compute live directional trends (slopes) from the real-time window
-    # The engine now prefers historical states that were moving in the SAME direction
-    # as the current plant state (e.g., prefer rising-BZT matches when BZT is rising now)
-    live_slopes = {}
-    try:
-        if current_real_df_window is not None and not current_real_df_window.empty:
-            for tag in active_tags:
-                if tag in current_real_df_window.columns:
-                    tail = current_real_df_window[tag].dropna().tail(10)  # last 10 measurements
-                    if len(tail) >= 2:
-                        live_slopes[tag] = float(tail.iloc[-1] - tail.iloc[0])  # positive = rising
-    except Exception:
-        live_slopes = {}
-
-    # Improvement #3: Direction-Aware Percentile Gap
-    # TSR_MAX hunts toward the 90th percentile (maximize).
-    # SHC_MIN hunts toward the 10th percentile (minimize).
-    # The gap to the target percentile dynamically boosts the weight the further
-    # away you are from the historical optimum — engine hunts harder when more room exists.
-    try:
-        conf_tmp = get_model_config_safe()
-        strategy_name_tmp, strat_tmp = get_active_strategy(conf_tmp)
-        opt_tmp = strat_tmp.get('optimisation_target', {})
-        primary_tag_tmp = opt_tmp.get('primary_tag')
-        primary_direction = opt_tmp.get('primary_direction', 'maximize').lower()
-        if primary_tag_tmp and primary_tag_tmp in valid_history.columns:
-            curr_primary = float(current_state.get(primary_tag_tmp, 0))
-            if primary_direction == 'minimize':
-                # For SHC: target the 10th percentile (best = lowest)
-                target_percentile = float(valid_history[primary_tag_tmp].quantile(0.10))
-                gap_to_target = max(0.0, curr_primary - target_percentile)  # positive = we're above target
-                engine_logger.info(f"[SCORE] SHC Percentile Gap: p10={target_percentile:.1f}, curr={curr_primary:.1f}, gap={gap_to_target:.1f}")
-            else:
-                # For TSR: target the 90th percentile (best = highest)
-                target_percentile = float(valid_history[primary_tag_tmp].quantile(0.90))
-                gap_to_target = max(0.0, target_percentile - curr_primary)  # positive = we're below target
-                engine_logger.info(f"[SCORE] TSR Percentile Gap: p90={target_percentile:.1f}, curr={curr_primary:.1f}, gap={gap_to_target:.1f}")
-            # Amplify the primary weight proportionally to the gap
-            if gap_to_target > 0 and primary_tag_tmp in weights:
-                weights[primary_tag_tmp] = weights[primary_tag_tmp] + gap_to_target * 0.1
-    except Exception:
-        pass
-
     def _adv_score_wrapper(row):
-        # Bug #1 Fix: Pass active_tags in strict order so u_vec/v_vec dimensions always
-        # match inv_cov. Previously, source_items dict iteration could be in any order.
         return _calculate_core_score(
             row, current_state, None, weights,
             active_constraints=active_constraints,
             inv_cov=inv_cov,
-            live_slopes=live_slopes,             # Bug #3: directional slope vectors
-            active_tags_ordered=active_tags,      # Bug #1: guarantees vector ordering
             is_advanced=True
         )
 
-    final_matches = final_matches.copy()
-    final_matches['score'] = final_matches.apply(_adv_score_wrapper, axis=1)
-    df_sorted = final_matches.sort_values(by='score', ascending=False)
+    valid_history['score'] = valid_history.apply(_adv_score_wrapper, axis=1)
+    df_sorted = valid_history.sort_values(by='score', ascending=False)
     df_sorted = df_sorted[df_sorted['score'] > -900000]
 
     stable_rows = []
     engine_logger.info(f"OPTIMIZATION: Found {len(df_sorted)} matches.")
 
-    DIVERSITY_MINUTES = 60 # Ensure matches are from distinct historical events
-
     for _, r in df_sorted.iterrows():
-        match_ts = r.get(ts_col)
-        
-        # 1. Temporal Diversity Check
-        is_diverse = True
-        for existing in stable_rows:
-            existing_ts = existing.get(ts_col)
-            if abs((match_ts - existing_ts).total_seconds()) < (DIVERSITY_MINUTES * 60):
-                is_diverse = False
-                break
-        
-        if not is_diverse: continue
-
-        # 2. Stability Check
-        if check_future_stability(historical_df, match_ts):
+        if check_future_stability(historical_df, r.get(ts_col)):
             stable_rows.append(r)
-        
         if len(stable_rows) >= 5: break
 
     return stable_rows
@@ -969,7 +736,7 @@ def check_disturbance_rules(current_state):
     """
     Checks safety rules from model_config.json 'safety_rules'.
     All thresholds and actions are config-driven.
-    Enforces gradual ramp via 'ramp_rate' — no step changes ever produced.
+    Enforces gradual ramp via 'ramp_rate' ÔÇö no step changes ever produced.
     """
     if not HAS_PROCESS_MODEL or not process_model: return None
     try:
@@ -988,7 +755,7 @@ def check_disturbance_rules(current_state):
                 action_type = rule.get('action_type', 'offset')
                 raw_value = rule['action_value']
 
-                # Enforce ramp_rate — the action_value per cycle is capped
+                # Enforce ramp_rate ÔÇö the action_value per cycle is capped
                 ramp_rate = rule.get('ramp_rate', None)
                 curr = float(current_state.get(tgt, 0))
 
@@ -1014,7 +781,7 @@ def check_disturbance_rules(current_state):
 
                 engine_logger.warning(
                     f"SAFETY RULE '{rule['name']}': {rule['condition_var']}={live:.1f} {op} {thresh}. "
-                    f"Nudging {tgt}: {curr:.3f} → {new_v:.3f} (ramp_rate={ramp_rate})")
+                    f"Nudging {tgt}: {curr:.3f} ÔåÆ {new_v:.3f} (ramp_rate={ramp_rate})")
                 return {
                     "match_score": "SAFETY-CLAMP",
                     "timestamp": str(pd.Timestamp.now()),
@@ -1060,9 +827,8 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
             base_weights = {}
             frontend_strategy = frontend_strategy or {}
 
-        # Read nudge settings from config — no hardcoded step values
+        # Read nudge settings from config ÔÇö no hardcoded step values
         full_conf = get_model_config_safe()
-        calc_vars_cfg = full_conf.get('calculated_variables', {})
         strategy_name, strat = get_active_strategy(full_conf)
         nudge_cfg = full_conf.get('nudge_settings', {})
         step_fraction = nudge_cfg.get('step_fraction', 0.15)
@@ -1071,7 +837,7 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
 
         engine_logger.info(f"[CYCLE] Mode={mode}  Strategy={strategy_name}")
 
-        current_state = map_tags_to_friendly_names(raw_state, controls_cfg, indicators_cfg, calc_vars_cfg)
+        current_state = map_tags_to_friendly_names(raw_state, controls_cfg, indicators_cfg)
 
         if (d := check_disturbance_rules(current_state)): return d
 
@@ -1110,7 +876,7 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
                     best = best_rows[0]
                     ts_col = get_timestamp_col()
 
-                    # Build rich match metadata — operators see WHY this timestamp was selected
+                    # Build rich match metadata ÔÇö operators see WHY this timestamp was selected
                     match_meta = {'strategy': strategy_name}
                     opt_conf = strat.get('optimisation_target', full_conf.get('optimisation_target', {}))
                     co_targets = opt_conf.get('co_targets', [])
@@ -1173,7 +939,7 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
                 reason = "Best Match (Cached)"
 
         # =========================================================
-        # CONTROL LOOP — Nudge calculation, fully config-driven
+        # CONTROL LOOP ÔÇö Nudge calculation, fully config-driven
         # =========================================================
         ui_actions = []
 
@@ -1202,7 +968,6 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
             ui_actions.append({
                 "var_name": tag,
                 "fingerprint_set_point": curr + step,
-                "final_target": float(target_vals.get(tag, curr)),
                 "current_setpoint": str(curr),
                 "reason": f"{reason} (Linear Ramp @ {var_speed*100:.1f}%)"
             })

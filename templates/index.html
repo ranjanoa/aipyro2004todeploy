@@ -222,7 +222,7 @@
                     <div class="flex-1 overflow-y-auto p-2">
                         <table class="action-table">
                             <thead>
-                                <tr><th class="pl-3">Variable</th><th>Current</th><th>Target</th><th>Delta</th></tr>
+                                <tr><th class="pl-3">Variable</th><th>Current</th><th>Nudge</th><th>Target</th></tr>
                             </thead>
                             <tbody id="action-table-body"><tr><td colspan="4" class="text-center py-8 text-gray-500 italic">System Standby...</td></tr></tbody>
                         </table>
@@ -909,6 +909,7 @@
                 socket.on('live_values', (data) => {
                     lastDataTime = Date.now();
                     latestLiveValues = { ...latestLiveValues, ...data };
+                    
 
                     if (isStalled) {
                         isStalled = false;
@@ -990,7 +991,7 @@
 
             Object.keys(data).forEach(tag => {
                 if (tag.includes('timestamp')) return;
-                const safeId = tag.replace(/[^a-zA-Z0-9]/g, '');
+                const safeId = tag.replace(/[^a-zA-Z0-9-_]/g, '');
                 const val = parseFloat(data[tag]);
                 const conf = allVars[tag] || {};
                 
@@ -1031,7 +1032,7 @@
                 let finalHtml = '';
                 const processTags = (rawString) => {
                     return rawString.split('||').filter(t => t && t !== 'RED' && t !== 'ORG' && t !== 'NRM').map(tag => {
-                        const safeId = tag.replace(/[^a-zA-Z0-9]/g, '');
+                        const safeId = tag.replace(/[^a-zA-Z0-9-_]/g, '');
                         const val = parseFloat(data[tag]);
                         const conf = allVars[tag] || {};
                         let colorClass = 'text-white bg-[#122a33]'; let textClass = 'text-gray-300';
@@ -1065,7 +1066,9 @@
         // =========================================================================
         function updateLiveUI(data) {
             Object.keys(data).forEach(k => {
-                const el = document.getElementById(`live-val-${k.replace(/[^a-zA-Z0-9-_]/g, '')}`);
+                const safeId = k.replace(/[^a-zA-Z0-9-_]/g, '');
+                const el = document.getElementById(`live-val-${safeId}`);
+                if (k.includes('degree')) console.log(`[updateLiveUI] Key: ${k}, SafeID: ${safeId}, Found: ${!!el}`);
                 if (el) {
                     el.innerText = parseFloat(data[k]).toFixed(2);
                     el.classList.add('val-flash');
@@ -1299,19 +1302,21 @@
 
             if (data.actions && data.actions.length > 0) {
                 data.actions.forEach(act => {
-                    const current = parseFloat(act.current_setpoint) || 0;
-                    const target = parseFloat(act.fingerprint_set_point) || 0;
-                    const safeDiff = target - current;
+                    const liveCurr = latestLiveValues[act.var_name] !== undefined ? parseFloat(latestLiveValues[act.var_name]) : parseFloat(act.current_setpoint || 0);
+                    const nudgeTarget = parseFloat(act.fingerprint_set_point) || 0;
+                    const finalTarget = parseFloat(act.final_target !== undefined ? act.final_target : nudgeTarget);
+                    
+                    const safeDiff = nudgeTarget - liveCurr;
                     let valClass = "text-white";
-                    let deltaHtml = `<span class="text-gray-400">-</span>`;
+                    let deltaHtml = `<span class="text-gray-500">-</span>`;
 
                     if (Math.abs(safeDiff) > 0.01) {
                         if (safeDiff > 0) {
                             valClass = "text-blue-400";
-                            deltaHtml = `<span class="text-blue-400 font-bold">▲ ${safeDiff.toFixed(2)}</span>`;
+                            deltaHtml = `<span class="text-blue-400 font-bold">▲ ${nudgeTarget.toFixed(2)}</span>`;
                         } else {
                             valClass = "text-gray-400";
-                            deltaHtml = `<span class="text-gray-400 font-bold">▼ ${Math.abs(safeDiff).toFixed(2)}</span>`;
+                            deltaHtml = `<span class="text-gray-400 font-bold">▼ ${nudgeTarget.toFixed(2)}</span>`;
                         }
                     }
 
@@ -1321,9 +1326,9 @@
                                 <div class="font-bold text-white text-xs">${act.var_name}</div>
                                 <span class="action-reason text-[9px] font-bold text-gray-500">${act.reason || 'Optimizing'}</span>
                             </td>
-                            <td class="font-mono text-xs text-gray-400">${current.toFixed(1)}</td>
-                            <td class="font-mono text-sm font-bold ${valClass}">${target.toFixed(1)}</td>
-                            <td class="text-xs">${deltaHtml}</td>
+                            <td class="font-mono text-xs text-gray-400">${liveCurr.toFixed(2)}</td>
+                            <td class="font-mono text-xs ${valClass}">${deltaHtml}</td>
+                            <td class="font-mono text-sm font-bold text-[#ebf552]">${finalTarget.toFixed(2)}</td>
                         </tr>`;
                 });
             } else {
@@ -1517,6 +1522,17 @@
 
             if (currentModelConfig.control_variables) {
                 Object.keys(currentModelConfig.control_variables).sort().forEach(k => cDiv.innerHTML += add(k, 'text-white'));
+            }
+
+            // 🚀 NEW: Include Calculated Control Variables
+            if (currentModelConfig.calculated_variables) {
+                Object.keys(currentModelConfig.calculated_variables).sort().forEach(k => {
+                    const cv = currentModelConfig.calculated_variables[k];
+                    if (cv.is_control) {
+                        const name = cv.friendly_name || k;
+                        cDiv.innerHTML += add(name, 'text-[#ebf552]');
+                    }
+                });
             }
 
             if (currentModelConfig.indicator_variables) {
@@ -1824,7 +1840,7 @@
                         <div class="flex-1 bg-[#1a3842] border border-[#2d4a54] p-2 flex flex-col justify-between rounded min-w-[120px] max-h-[50px]">
                             <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none truncate" title="${kpiName}">${kpiName}</span>
                             <div class="flex items-baseline gap-1 mt-1">
-                                <span class="text-lg font-black text-white font-mono leading-none" id="op3-kpi-${tagInfo.tag.replace(/[^a-zA-Z0-9]/g, '')}">---</span>
+                                <span class="text-lg font-black text-white font-mono leading-none" id="op3-kpi-${tagInfo.tag.replace(/[^a-zA-Z0-9-_]/g, '')}">---</span>
                                 <span class="text-[8px] text-[#ebf552] font-bold uppercase leading-none">${tagInfo.unit || ''}</span>
                             </div>
                         </div>`;
@@ -1833,7 +1849,7 @@
 
             // Generic Row builder to populate both Operator Summary AND the individual tabs
             const buildRow = (tag, alias, prefix, toggleFn) => {
-                const safeId = tag.replace(/[^a-zA-Z0-9]/g, '');
+                const safeId = tag.replace(/[^a-zA-Z0-9-_]/g, '');
                 return `
                 <tr class="hover:bg-white/5 transition-colors">
                     <td class="p-1.5 text-gray-300 overflow-hidden align-middle">
@@ -1920,7 +1936,7 @@
                 Object.keys(indVars).sort().forEach(tag => {
                     if (hasIndSummary && indVars[tag].op_summary !== true && indVars[tag].op_summary !== "true") return;
 
-                    const safeId = tag.replace(/[^a-zA-Z0-9]/g, '');
+                    const safeId = tag.replace(/[^a-zA-Z0-9-_]/g, '');
                     liveSensorsList.innerHTML += `
                         <div class="flex justify-between items-center border-b border-[#2d4a54] py-1.5 hover:bg-white/5 transition-colors pl-1 pr-2">
                             <div class="flex items-center gap-1.5 text-gray-400 flex-1 min-w-0 overflow-hidden">
@@ -1938,7 +1954,7 @@
 
         function toggleOpTrend(tag) {
             const idx = opActiveTrends.indexOf(tag);
-            const safeId = tag.replace(/[^a-zA-Z0-9]/g, '');
+            const safeId = tag.replace(/[^a-zA-Z0-9-_]/g, '');
             const btns = document.querySelectorAll(`#op3-trend-btn-${safeId}`);
 
             if (idx > -1) {
@@ -1968,7 +1984,7 @@
                 Object.keys(currentModelConfig.kpi_tags).forEach(kpiName => {
                     const tag = currentModelConfig.kpi_tags[kpiName].tag;
                     if (data[tag] !== undefined) {
-                        const el = document.getElementById(`op3-kpi-${tag.replace(/[^a-zA-Z0-9]/g, '')}`);
+                        const el = document.getElementById(`op3-kpi-${tag.replace(/[^a-zA-Z0-9-_]/g, '')}`);
                         if (el) el.innerText = parseFloat(data[tag]).toFixed(1);
                     }
                 });
@@ -1976,7 +1992,8 @@
 
             Object.keys(data).forEach(tag => {
                 if (tag.includes('timestamp')) return;
-                const safeId = tag.replace(/[^a-zA-Z0-9]/g, '');
+                const safeId = tag.replace(/[^a-zA-Z0-9-_]/g, '');
+                if (tag.includes('degree')) console.log(`[updateOpSummary] Tag: ${tag}, SafeID: ${safeId}`);
                 const val = parseFloat(data[tag]).toFixed(2);
 
                 ['op3', 'kiln', 'phpc', 'cooler'].forEach(prefix => {
@@ -2055,20 +2072,14 @@
                 window.latestActions = data.actions;
 
                 data.actions.forEach(act => {
-                    const safeId = act.var_name.replace(/[^a-zA-Z0-9]/g, '');
+                    const safeId = act.var_name.replace(/[^a-zA-Z0-9-_]/g, '');
                     
                     const liveCurr = latestLiveValues[act.var_name] !== undefined ? parseFloat(latestLiveValues[act.var_name]) : parseFloat(act.current_setpoint || 0);
-                    const finalTarget = parseFloat(act.fingerprint_set_point || 0);
-                    const varConf = currentModelConfig.control_variables[act.var_name] || {};
-                    const maxNudge = Math.abs(parseFloat(varConf.nudge_speed)) || 0.05;
-
-                    let nudgedTarget = liveCurr;
-                    if (finalTarget > liveCurr) {
-                        nudgedTarget = Math.min(liveCurr + maxNudge, finalTarget);
-                    } else if (finalTarget < liveCurr) {
-                        nudgedTarget = Math.max(liveCurr - maxNudge, finalTarget);
-                    }
-
+                    
+                    // Backend now provides both the immediate nudge AND the final historical target
+                    const nudgedTarget = parseFloat(act.fingerprint_set_point || 0);
+                    const finalTarget = parseFloat(act.final_target !== undefined ? act.final_target : nudgedTarget);
+                    
                     const nudgeDiff = nudgedTarget - liveCurr;
 
                     ['op3', 'kiln', 'phpc', 'cooler'].forEach(prefix => {
@@ -2202,7 +2213,7 @@
         function updateSectionTrendButtonStyles(sec) {
             document.querySelectorAll(`[id^="${sec}-trend-btn-"], [id^="${sec}-strend-"]`).forEach(b => b.classList.remove('trend-active', 'text-[#ebf552]'));
             sectionActiveTrends[sec].forEach(tag => {
-                const safeId = tag.replace(/[^a-zA-Z0-9]/g, '');
+                const safeId = tag.replace(/[^a-zA-Z0-9-_]/g, '');
                 document.querySelectorAll(`#${sec}-trend-btn-${safeId}, #${sec}-strend-${safeId}`).forEach(b => b.classList.add('trend-active', 'text-[#ebf552]'));
             });
         }

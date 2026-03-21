@@ -76,7 +76,7 @@ AI_INTERVAL_SECONDS = 30
 FAST_CYCLE_SECONDS = 2    
 
 # The delay between deep historical dataset scans in Fingerprint AUTO mode
-SCAN_INTERVAL_SECONDS = 300
+SCAN_INTERVAL_SECONDS = 120
 
 # ==============================================================================
 # 5. FILE PATHS

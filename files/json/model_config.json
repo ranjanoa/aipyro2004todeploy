@@ -1,32 +1,5 @@
 {
-  "active_strategy": "TSR_MAX",
-  "calculated_variables": {
-    "filling_degree_sp": {
-      "description": "Kiln filling degree SP",
-      "formula": "Weighfeeder Mass Flow * 0.262305569463854 / Speed Actual Value",
-      "unit": "%",
-      "is_control": true,
-      "default_max": 13,
-      "default_min": 11,
-      "friendly_name": "Kiln filling degree (%) SP"
-    },
-    "filling_degree_curr": {
-      "description": "Kiln filling degree current",
-      "formula": "Weighfeeder Mass Flow * 0.262305569463854 / Speed Actual Value",
-      "unit": "%",
-      "is_indicator": true,
-      "friendly_name": "Kiln filling degree (%) current"
-    },
-    "grate_pressure_target": {
-      "description": "Grate pressure target",
-      "formula": "(P Layer 1 chamber 2 + P Layer 2 chamber 2) / 2",
-      "unit": "mbar",
-      "is_control": true,
-      "default_max": 50,
-      "default_min": 40,
-      "friendly_name": "Cooler grate pressure target"
-    }
-  },
+  "active_strategy": "SHC_MIN",
   "ai_bindings": {
     "description": "Maps AI roles to specific process tags",
     "output_keys": {
@@ -37,17 +10,53 @@
     "primary_control_actor": "Solid Fossil Mass flow Actual MainBurner",
     "primary_prediction_target": "Motor 1 Current"
   },
+  "calculated_variables": {
+    "filling_degree_curr": {
+      "description": "Kiln filling degree current",
+      "formula": "Mass Flow Clinker production * Clinker Factor * 0.262305569463854 / Speed Actual Value",
+      "friendly_name": "Kiln filling degree (%) current",
+      "is_indicator": true,
+      "unit": "%"
+    },
+    "filling_degree_sp": {
+      "default_max": 13,
+      "default_min": 11,
+      "description": "Kiln filling degree SP",
+      "formula": "Mass Flow Clinker production * Clinker Factor * 0.262305569463854 / Speed Actual Value",
+      "friendly_name": "Kiln filling degree (%) SP",
+      "is_control": true,
+      "is_setpoint": true,
+      "nudge_speed": 0.05,
+      "unit": "%"
+    },
+    "grate_pressure_target": {
+      "default_max": 50,
+      "default_min": 40,
+      "description": "Grate pressure target",
+      "formula": "(P Layer 1 chamber 2 + P Layer 2 chamber 2) / 2",
+      "friendly_name": "Cooler grate pressure target",
+      "is_control": true,
+      "is_setpoint": true,
+      "nudge_speed": 0.01,
+      "unit": "mbar"
+    }
+  },
   "control_variables": {
     "Dividing gate position Cyclone 3": {
       "aipc": true,
       "default_max": 100,
       "default_min": 5,
       "description": "Dividing gate position",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.5,
+      "op_summary": true,
       "priority": 3,
       "tag_name": "Dividing gate position Cyclone 3",
-      "op_summary": true,
       "unit": "%"
     },
     "Fan Gas Flow": {
@@ -55,11 +64,16 @@
       "default_max": 1000,
       "default_min": 10,
       "description": "Quenching fan flow rate",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.05,
+      "op_summary": true,
       "priority": 3,
       "tag_name": "Fan Gas Flow",
-      "op_summary": true,
       "unit": "%"
     },
     "Fan Speed": {
@@ -67,11 +81,16 @@
       "default_max": 900,
       "default_min": 0,
       "description": "Quenching fan speed",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.1,
+      "op_summary": true,
       "priority": 3,
       "tag_name": "Fan Speed",
-      "op_summary": true,
       "unit": "rpm"
     },
     "Filter Fan Motor Speed": {
@@ -79,11 +98,16 @@
       "default_max": 1050,
       "default_min": 600,
       "description": "Cooler BF fan speed",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.08,
+      "op_summary": true,
       "priority": 4,
       "tag_name": "Filter Fan Motor Speed",
-      "op_summary": true,
       "unit": "rpm"
     },
     "ID Fan Speed": {
@@ -91,11 +115,16 @@
       "default_max": 1000,
       "default_min": 0,
       "description": "ID fan speed",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.1,
+      "op_summary": true,
       "priority": 2,
       "tag_name": "ID Fan Speed",
-      "op_summary": true,
       "unit": "rpm"
     },
     "Liquid Alternative Mass Flow Actual MainBurner": {
@@ -103,11 +132,16 @@
       "default_max": 2000,
       "default_min": 0,
       "description": "RIP main burner",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.05,
+      "op_summary": true,
       "priority": 4,
       "tag_name": "Liquid Alternative Mass Flow Actual MainBurner",
-      "op_summary": true,
       "unit": "l/h"
     },
     "Mass Flow Actual Solid 1 CalcinerBurner": {
@@ -115,11 +149,16 @@
       "default_max": 10,
       "default_min": 0,
       "description": "MV: RDF calciner",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.3,
+      "op_summary": true,
       "priority": 1,
       "tag_name": "Mass Flow Actual Solid 1 CalcinerBurner",
-      "op_summary": true,
       "unit": "t/h"
     },
     "Mass Flow Actual Solid 2 CalcinerBurner": {
@@ -127,11 +166,16 @@
       "default_max": 10,
       "default_min": 0,
       "description": "MV: RDF calciner",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.3,
+      "op_summary": true,
       "priority": 1,
       "tag_name": "Mass Flow Actual Solid 2 CalcinerBurner",
-      "op_summary": true,
       "unit": "t/h"
     },
     "Position flap": {
@@ -139,6 +183,11 @@
       "default_max": 100,
       "default_min": 0,
       "description": "MV: Tertiary air damper position",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.08,
       "priority": 3,
@@ -150,11 +199,16 @@
       "default_max": 5,
       "default_min": 0,
       "description": "RDF main burner",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.05,
+      "op_summary": true,
       "priority": 1,
       "tag_name": "Solid Alternative Mass Flow Actual MainBurner",
-      "op_summary": true,
       "unit": "t/h"
     },
     "Solid Fossil Mass Flow Actual CalcinerBurner": {
@@ -162,11 +216,16 @@
       "default_max": 13,
       "default_min": 0,
       "description": "Petcoke calciner",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.05,
+      "op_summary": true,
       "priority": 1,
       "tag_name": "Solid Fossil Mass Flow Actual CalcinerBurner",
-      "op_summary": true,
       "unit": "t/h"
     },
     "Solid Fossil Mass flow Actual MainBurner": {
@@ -174,11 +233,16 @@
       "default_max": 8.5,
       "default_min": 0,
       "description": "Petcoke main burner",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.05,
+      "op_summary": true,
       "priority": 1,
       "tag_name": "Solid Fossil Mass flow Actual MainBurner",
-      "op_summary": true,
       "unit": "t/h"
     },
     "Speed Actual Stroke central grille 1": {
@@ -186,11 +250,16 @@
       "default_max": 30,
       "default_min": 0,
       "description": "Cooler grate C1",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.05,
+      "op_summary": true,
       "priority": 2,
       "tag_name": "Speed Actual Stroke central grille 1",
-      "op_summary": true,
       "unit": "stroke/min"
     },
     "Speed Actual Stroke central grille 2": {
@@ -198,11 +267,16 @@
       "default_max": 30,
       "default_min": 0,
       "description": "Cooler grate C2",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.05,
+      "op_summary": true,
       "priority": 2,
       "tag_name": "Speed Actual Stroke central grille 2",
-      "op_summary": true,
       "unit": "stroke/min"
     },
     "Speed Actual Stroke left grille": {
@@ -210,11 +284,16 @@
       "default_max": 30,
       "default_min": 0,
       "description": "Cooler grate L",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.05,
+      "op_summary": true,
       "priority": 2,
       "tag_name": "Speed Actual Stroke left grille",
-      "op_summary": true,
       "unit": "stroke/min"
     },
     "Speed Actual Stroke right grille": {
@@ -222,11 +301,16 @@
       "default_max": 30,
       "default_min": 0,
       "description": "Cooler grate R",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.05,
+      "op_summary": true,
       "priority": 2,
       "tag_name": "Speed Actual Stroke right grille",
-      "op_summary": true,
       "unit": "stroke/min"
     },
     "Speed Actual Value": {
@@ -234,11 +318,16 @@
       "default_max": 4.1,
       "default_min": 0,
       "description": "Kiln speed",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.05,
+      "op_summary": true,
       "priority": 1,
       "tag_name": "Speed Actual Value",
-      "op_summary": true,
       "unit": "rpm"
     },
     "Weighfeeder Mass Flow": {
@@ -246,11 +335,16 @@
       "default_max": 300,
       "default_min": 0,
       "description": "Kiln feed",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "is_setpoint": true,
       "nudge_speed": 0.02,
+      "op_summary": true,
       "priority": 1,
       "tag_name": "Weighfeeder Mass Flow",
-      "op_summary": true,
       "unit": "t/h"
     }
   },
@@ -275,423 +369,808 @@
   },
   "indicator_variables": {
     "% TSR Kiln Inst": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "% TSR Kiln Inst"
     },
     "% TSR Main Burner Inst": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "% TSR Main Burner Inst"
     },
     "% TSR PreCalciner CDR30Inst": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "% TSR PreCalciner CDR30Inst"
     },
     "Boiler bypass damper Position": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Boiler bypass damper Position"
     },
     "C3S DRX sum": {
       "default_max": 74,
       "default_min": 72,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "C3S DRX sum"
     },
     "C3S M1": {
       "default_max": 50,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "C3S M1"
     },
     "C3S M3": {
       "default_max": 50,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "C3S M3"
     },
     "CO Outlet cyclone 3": {
       "default_max": 0.2,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "CO Outlet cyclone 3"
     },
     "CO Smoke Chamber": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 1,
-      "tag_name": "CO Smoke Chamber",
-      "op_summary": true
+      "tag_name": "CO Smoke Chamber"
     },
     "CaOl DRX": {
       "default_max": 3.1,
       "default_min": 1,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "CaOl DRX"
     },
     "CaOlivre": {
       "default_max": 3.1,
       "default_min": 1,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "CaOlivre"
     },
     "Calciner T 1 Combustion Chamber": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "Calciner T 1 Combustion Chamber",
-      "op_summary": true
+      "tag_name": "Calciner T 1 Combustion Chamber"
     },
     "Calciner T 2 Combustion Chamber": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "Calciner T 2 Combustion Chamber",
-      "op_summary": true
+      "tag_name": "Calciner T 2 Combustion Chamber"
     },
     "Calorific Value - CDR30 Calciner": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "Calorific Value - CDR30 Calciner"
     },
     "Calorific Value - Fuel": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "Calorific Value - Fuel"
     },
     "Calorific Value - MRSP Main Burner": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "Calorific Value - MRSP Main Burner"
     },
     "Calorific Value - Petcoke": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "Calorific Value - Petcoke"
     },
     "Calorific Value - RIP 190205": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "Calorific Value - RIP 190205"
     },
     "Calorific Value - RIP 190208": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "Calorific Value - RIP 190208"
     },
     "Calorific Value - RIP 191211": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "Calorific Value - RIP 191211"
     },
     "Cl C4's": {
       "default_max": 2,
       "default_min": 1,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Cl C4's"
     },
     "Clinker Factor": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "Clinker Factor"
     },
     "Coal Mill 41 ON": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 1,
       "tag_name": "Coal Mill 41 ON"
     },
     "Delta P": {
       "default_max": -0.2,
       "default_min": -0.7,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Delta P"
     },
     "Delta P 2": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Delta P 2"
     },
     "Dividing gate position SP": {
       "default_max": 100,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Dividing gate position SP"
     },
     "Elevator 1 Current": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Elevator 1 Current"
     },
     "Fan Speed SP": {
       "default_max": 100,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Fan Speed SP"
     },
     "Filter Fan Speed": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Filter Fan Speed"
     },
     "Gas Analysis CO Calciner": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Gas Analysis CO Calciner"
     },
     "ID Fan P outlet": {
       "default_max": 0,
       "default_min": -11,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "ID Fan P outlet"
     },
     "ID Fan Speed SP": {
       "default_max": 1000,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "ID Fan Speed SP"
     },
     "Kiln feed LSF": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Kiln feed LSF"
+    },
+    "Kiln filling degree (%) current": {
+      "default_max": 13,
+      "default_min": 11,
+      "description": "Kiln filling degree cur",
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "formula_key": "filling_degree",
+      "is_calculated": true,
+      "op_summary": true,
+      "priority": 0,
+      "unit": "%"
     },
     "LOI C4's": {
       "default_max": 5,
       "default_min": 1.5,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "LOI C4's"
     },
     "Mass Flow Clinker production": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 1,
       "tag_name": "Mass Flow Clinker production"
     },
     "Mass Flow RIP 19 02 05": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Mass Flow RIP 19 02 05"
     },
     "Mass Flow RIP 19 02 08": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Mass Flow RIP 19 02 08"
     },
     "Mass Flow RIP 19 12 11": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Mass Flow RIP 19 12 11"
     },
     "Mass Flow Set Solid Fuel.1": {
       "default_max": 12,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Mass Flow Set Solid Fuel.1"
     },
     "Mass Flow Set Solid Fuel.2": {
       "default_max": 12,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Mass Flow Set Solid Fuel.2"
     },
     "Mass Flow set": {
       "default_max": 2000,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Mass Flow set"
     },
     "Mass Flow set Solid Alt": {
       "default_max": 7,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Mass Flow set Solid Alt"
     },
     "Mass FlowSet point": {
       "default_max": 13,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Mass FlowSet point"
     },
     "Motor 1 Current": {
       "default_max": 330,
       "default_min": 240,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 1,
-      "tag_name": "Motor 1 Current",
-      "op_summary": true
+      "tag_name": "Motor 1 Current"
     },
     "Motor 1 Speed": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Motor 1 Speed"
     },
     "Motor 2 Current": {
       "default_max": 330,
       "default_min": 240,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 1,
       "tag_name": "Motor 2 Current"
     },
     "Motor 2 Speed": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Motor 2 Speed"
     },
     "NOX Smoke Chamber": {
       "default_max": 1000,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 1,
-      "tag_name": "NOX Smoke Chamber",
-      "op_summary": true
+      "tag_name": "NOX Smoke Chamber"
     },
     "O2 Calciner": {
       "default_max": 3.5,
       "default_min": 1,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "O2 Calciner",
-      "op_summary": true
+      "tag_name": "O2 Calciner"
     },
     "O2 Outlet cyclone 3": {
       "default_max": 3,
       "default_min": 1.5,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 1,
-      "tag_name": "O2 Outlet cyclone 3",
-      "op_summary": true
+      "tag_name": "O2 Outlet cyclone 3"
     },
     "O2 Smoke Chamber": {
       "default_max": 3,
       "default_min": 1,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 1,
-      "tag_name": "O2 Smoke Chamber",
-      "op_summary": true
+      "tag_name": "O2 Smoke Chamber"
     },
     "P Layer 1 chamber 2": {
       "default_max": 50,
       "default_min": 40,
+      "filtering": {
+        "ema_alpha": 0.1,
+        "enabled": true,
+        "median_window": 5
+      },
+      "op_summary": true,
       "priority": 1,
-      "tag_name": "P Layer 1 chamber 2",
-      "op_summary": true
+      "tag_name": "P Layer 1 chamber 2"
     },
     "P Layer 2 chamber 2": {
       "default_max": 50,
       "default_min": 40,
+      "filtering": {
+        "ema_alpha": 0.1,
+        "enabled": true,
+        "median_window": 5
+      },
+      "op_summary": true,
       "priority": 1,
-      "tag_name": "P Layer 2 chamber 2",
-      "op_summary": true
+      "tag_name": "P Layer 2 chamber 2"
     },
     "P inlet": {
       "default_max": -50,
       "default_min": -65,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "P inlet",
-      "op_summary": true
+      "tag_name": "P inlet"
     },
     "P outlet": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "P outlet",
-      "op_summary": true
+      "tag_name": "P outlet"
     },
     "Position flap SP": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Position flap SP"
     },
     "Production Factor": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Production Factor"
     },
     "Raw Mill 3 ON": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 1,
       "tag_name": "Raw Mill 3 ON"
     },
     "Specfical Heat Consumption Inst": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "Specfical Heat Consumption Inst"
     },
     "Speed Set Value": {
       "default_max": 4.1,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Speed Set Value"
     },
     "T Burning Zone 1": {
       "default_max": 1400,
       "default_min": 1000,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 1,
-      "tag_name": "T Burning Zone 1",
-      "op_summary": true
+      "tag_name": "T Burning Zone 1"
     },
     "T Burning Zone 2": {
       "default_max": 1400,
       "default_min": 1000,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 1,
-      "tag_name": "T Burning Zone 2",
-      "op_summary": true
+      "tag_name": "T Burning Zone 2"
     },
     "T gas 1 Secondary Air": {
       "default_max": 1100,
       "default_min": 950,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "T gas 1 Secondary Air",
-      "op_summary": true
+      "tag_name": "T gas 1 Secondary Air"
     },
     "T gas 2 Secondary Air": {
       "default_max": 1100,
       "default_min": 950,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "T gas 2 Secondary Air",
-      "op_summary": true
+      "tag_name": "T gas 2 Secondary Air"
     },
     "T gas inlet": {
       "default_max": 450,
       "default_min": 390,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "T gas inlet",
-      "op_summary": true
+      "tag_name": "T gas inlet"
     },
     "T gas outlet": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "T gas outlet",
-      "op_summary": true
+      "tag_name": "T gas outlet"
     },
     "T gas outlet Cyclone 4A": {
       "default_max": 1000,
       "default_min": 800,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "T gas outlet Cyclone 4A",
-      "op_summary": true
+      "tag_name": "T gas outlet Cyclone 4A"
     },
     "T gas outlet Cyclone 4B": {
       "default_max": 1000,
       "default_min": 800,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "T gas outlet Cyclone 4B",
-      "op_summary": true
+      "tag_name": "T gas outlet Cyclone 4B"
     },
     "T mat out Cyclone 4A 1": {
       "default_max": 1000,
       "default_min": 800,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "T mat out Cyclone 4A 1",
-      "op_summary": true
+      "tag_name": "T mat out Cyclone 4A 1"
     },
     "T mat out Cyclone 4A 2": {
       "default_max": 1000,
       "default_min": 800,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "T mat out Cyclone 4A 2"
     },
     "T mat out Cyclone 4B 1": {
       "default_max": 1000,
       "default_min": 800,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "T mat out Cyclone 4B 1"
     },
     "T mat out Cyclone 4B 2": {
       "default_max": 1000,
       "default_min": 800,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "T mat out Cyclone 4B 2"
     },
     "Tertiary Air Delta P 1": {
       "default_max": 0,
       "default_min": -15,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "Tertiary Air Delta P 1",
-      "op_summary": true
+      "tag_name": "Tertiary Air Delta P 1"
     },
     "Thermal Split CalcinerInst": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 5,
       "tag_name": "Thermal Split CalcinerInst"
     },
     "Weighfeeder Kiln Production": {
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
+      "op_summary": true,
       "priority": 2,
-      "tag_name": "Weighfeeder Kiln Production",
-      "op_summary": true
+      "tag_name": "Weighfeeder Kiln Production"
     },
     "Weighfeeder Mass Flow SP": {
       "default_max": 300,
       "default_min": 0,
+      "filtering": {
+        "ema_alpha": 0.2,
+        "enabled": true,
+        "median_window": 3
+      },
       "priority": 2,
       "tag_name": "Weighfeeder Mass Flow SP"
-    },
-    "Kiln filling degree (%) current": {
-      "is_calculated": true,
-      "formula_key": "filling_degree",
-      "default_max": 13,
-      "default_min": 11,
-      "description": "Kiln filling degree cur",
-      "op_summary": true,
-      "priority": 0,
-      "unit": "%"
     }
   },
   "kpi_tags": {
@@ -890,8 +1369,8 @@
     }
   ],
   "scoring_settings": {
-    "age_penalty_per_day": 0.05,
-    "comment": "Priority multipliers for candidate scoring. Priority 1 = most critical. Extend freely.",
+    "age_penalty_per_day": 0.5,
+    "comment": "age_penalty_per_day: penalty per calendar day old (0.5 = 365 days old loses 182 points). recency_boost: flat bonus for fingerprints within N days. trend: bonus/penalty for directional alignment.",
     "distance_penalty_weight": 1000,
     "priority_multipliers": {
       "1": 10,
@@ -899,7 +1378,12 @@
       "3": 1,
       "4": 0.5,
       "5": 0.1
-    }
+    },
+    "recency_boost_days": 14,
+    "recency_boost_value": 200,
+    "search_aggression": 1,
+    "trend_match_bonus": 50,
+    "trend_mismatch_penalty": 100
   },
   "strategies": {
     "SHC_MIN": {
@@ -940,9 +1424,11 @@
             "weight": 0.4
           }
         ],
+        "primary_direction": "minimize",
         "primary_max": 800,
         "primary_min": 0,
-        "primary_tag": "Specfical Heat Consumption Inst"
+        "primary_tag": "Specfical Heat Consumption Inst",
+        "primary_weight": -20
       },
       "stability_tags": [
         {
@@ -1002,12 +1488,13 @@
             "max": 860,
             "min": 0,
             "tag": "Specfical Heat Consumption Inst",
-            "weight": -0.4
+            "weight": -2
           }
         ],
         "primary_max": 999,
         "primary_min": 50,
-        "primary_tag": "% TSR Kiln Inst"
+        "primary_tag": "% TSR Kiln Inst",
+        "primary_weight": 20
       },
       "stability_tags": [
         {
@@ -1033,28 +1520,73 @@
       ]
     },
     "USER_DEFINED": {
-      "description": "Custom strategy template. Add your own targets and filters here.",
+      "_INSTRUCTIONS": [
+        "HOW TO CREATE A NEW STRATEGY:",
+        "1. Copy this entire 'USER_DEFINED' block.",
+        "2. Paste it below and rename the key (e.g. 'FEED_MAX', 'STABLE_OPS').",
+        "3. Fill in your optimisation_target, golden_prefilter, and stability_tags.",
+        "4. Set 'active_strategy' at the top of this file to your new strategy name.",
+        "5. The engine will reload automatically on the next scan cycle.",
+        "STABILITY IS ALWAYS ENFORCED: The stability_tags check runs on every candidate",
+        "regardless of strategy. Adding more tags here only makes it stricter."
+      ],
+      "description": "User-defined custom strategy. Edit targets and filters to suit your operational goal.",
       "golden_prefilter": {
+        "Motor 1 Current": {
+          "_comment": "Only consider kiln states in normal operating current range",
+          "max": 320,
+          "min": 260
+        },
+        "Specfical Heat Consumption Inst": {
+          "_comment": "Exclude inefficient periods from history pool",
+          "max": 870
+        },
         "Weighfeeder Mass Flow": {
+          "_comment": "Only search history where feed was above 250 t/h (exclude low-production periods)",
           "min": 250
-        }
+        },
+        "_comment": "Hard gates: historical rows MUST satisfy ALL these ranges to even be considered."
       },
       "optimisation_target": {
+        "_comment": "Defines WHAT the engine is hunting for. primary_tag is the KPI to optimise.",
+        "_direction_note": "Options: 'maximize' or 'minimize'. Controls which historical percentile is targeted.",
+        "_weight_note": "Positive = maximise (e.g. TSR). Negative = minimise (e.g. SHC). Larger abs = more aggressive.",
         "co_targets": [
           {
+            "_comment": "Co-targets are secondary KPIs. The engine balances all of them together.",
+            "_weight_note": "Positive = higher is better. Negative = lower is better.",
             "max": 1380,
             "min": 1300,
             "tag": "T Burning Zone 1",
             "weight": 0.5
+          },
+          {
+            "_weight_note": "Negative weight: engine prefers historical rows where SHC was LOW",
+            "max": 860,
+            "min": 0,
+            "tag": "Specfical Heat Consumption Inst",
+            "weight": -0.5
           }
         ],
+        "primary_direction": "maximize",
         "primary_max": 300,
         "primary_min": 280,
-        "primary_tag": "Motor 1 Current"
+        "primary_tag": "Motor 1 Current",
+        "primary_weight": 5
       },
       "stability_tags": [
         {
+          "_comment": "Stability check: the 120 minutes AFTER a candidate timestamp must be stable on these tags.",
+          "_threshold_note": "Coefficient of variation must be below 3% over the lookahead window",
           "tag": "T Burning Zone 1",
+          "threshold_pct": 0.03
+        },
+        {
+          "tag": "Motor 1 Current",
+          "threshold_pct": 0.08
+        },
+        {
+          "tag": "Specfical Heat Consumption Inst",
           "threshold_pct": 0.05
         }
       ]

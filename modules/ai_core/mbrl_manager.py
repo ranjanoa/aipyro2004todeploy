@@ -87,8 +87,9 @@ def _initialize_system():
     controls = process_model.get_control_variables()
     indicators = process_model.get_indicator_variables()
 
-    s_cols = sorted(list(controls.keys()) + list(indicators.keys()))
-    a_cols = sorted([k for k, v in controls.items() if v.get('is_setpoint')])
+    # Exclude calculated variables and priority 0 variables from the AI's core mathematical optimization space
+    s_cols = sorted([k for k, v in {**controls, **indicators}.items() if not v.get('is_calculated') and v.get('priority', 3) != 0 and 'formula' not in v])
+    a_cols = sorted([k for k, v in controls.items() if v.get('is_setpoint') and not v.get('is_calculated') and v.get('priority', 3) != 0 and 'formula' not in v])
 
     required_cols = list(set(s_cols + a_cols))
 
@@ -455,6 +456,7 @@ def get_optimal_action(current_real_df):
         ui_actions.append({
             "var_name": tag,
             "fingerprint_set_point": float(nudged_val),
+            "final_target": float(ultimate_goal),
             "current_setpoint": str(round(current_val, 2)),
             "unit": controls_cfg.get(tag, {}).get('unit', ''),
             "reason": reason

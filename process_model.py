@@ -3,7 +3,7 @@ import os
 import config
 import pandas as pd
 import numpy as np
-import formula_processor
+import re
 
 # ==============================================================================
 # 1. CONFIGURATION MANAGEMENT
@@ -28,16 +28,66 @@ def save_model_config(new_config):
     except Exception as e:
         return False, str(e)
 
+def apply_signal_filters(df):
+    """
+    Applies Rolling Median (Despiking) and Exponential Moving Average (EMA) (Smoothing)
+    to historical and real-time data exactly as configured in model_config.json.
+    """
+    if df.empty: return df
+    conf = load_model_config()
+    
+    # Check all variables for filtering config
+    all_vars = {**conf.get('control_variables', {}), **conf.get('indicator_variables', {})}
+    
+    for friendly_name, cfg in all_vars.items():
+        filter_cfg = cfg.get('filtering', {})
+        if not filter_cfg.get('enabled', False):
+            continue
+            
+        tag_name = cfg.get('tag_name', friendly_name)
+        if tag_name not in df.columns:
+            continue
+            
+        # 1. Rolling Median (Outlier/Spike Rejection)
+        median_window = int(filter_cfg.get('median_window', 1))
+        if median_window > 1:
+            df[tag_name] = df[tag_name].rolling(window=median_window, min_periods=1).median()
+            
+        # 2. Exponential Moving Average (High Frequency Noise Smoothing)
+        ema_alpha = float(filter_cfg.get('ema_alpha', 1.0))
+        if ema_alpha < 1.0:
+            df[tag_name] = df[tag_name].ewm(alpha=ema_alpha, adjust=False).mean()
+            
+    return df
+
 # ==============================================================================
 # 2. VARIABLE HELPERS
 # ==============================================================================
 def get_control_variables():
     conf = load_model_config()
-    return conf.get('control_variables', {})
+    controls = conf.get('control_variables', {}).copy()
+    calc = conf.get('calculated_variables', {})
+    # Plan B: Materialize calculated variables as first-class controls
+    for k, v in calc.items():
+        if v.get('is_control') is True:
+            friendly = v.get('friendly_name', k)
+            cfg_copy = v.copy()
+            cfg_copy['is_calculated'] = True
+            controls[friendly] = cfg_copy
+    return controls
 
 def get_indicator_variables():
     conf = load_model_config()
-    return conf.get('indicator_variables', {})
+    indicators = conf.get('indicator_variables', {}).copy()
+    calc = conf.get('calculated_variables', {})
+    # Plan B: Materialize calculated variables as first-class indicators
+    for k, v in calc.items():
+        if v.get('is_indicator') is True:
+            friendly = v.get('friendly_name', k)
+            cfg_copy = v.copy()
+            cfg_copy['is_calculated'] = True
+            indicators[friendly] = cfg_copy
+    return indicators
 
 def get_tag_to_name_map():
     """Maps DB Column Names -> Human Friendly Names"""
@@ -104,6 +154,7 @@ def build_api_response(real_df, match_row, future_df, score, confidence, mode):
             "var_name": var,
             "current_setpoint": curr_val,
             "fingerprint_set_point": target_val,
+            "final_target": target_val,
             "diff": diff,
             "reason": reason,
             "type": "Control"
@@ -114,7 +165,12 @@ def build_api_response(real_df, match_row, future_df, score, confidence, mode):
     mapped_state = {tag_to_name.get(k, k): v for k, v in current_state.items()}
     
     # Independent calculation join
-    calc_actions = formula_processor.generate_calculated_actions(actions, mapped_state, controls, indicators, calc_vars_cfg)
+    calc_actions = generate_calculated_actions(actions, mapped_state, controls, indicators, calc_vars_cfg)
+    
+    # Remove naive raw actions that are overwritten by calculated targets
+    calc_names = {c['var_name'] for c in calc_actions}
+    actions = [a for a in actions if a.get('var_name') not in calc_names]
+    
     actions.extend(calc_actions)
 
     # 4. CHART DATA
@@ -156,12 +212,92 @@ def build_no_fingerprint_response(current_state):
 # 4. UTILS & STRATEGY HELPERS
 # ==============================================================================
 def get_optimization_weights():
-    """Returns weights for variable matching (0-10 scale)."""
+    """
+    Returns weights for directional optimization. 
+    Default is 0.0 because optimization is strategy-driven.
+    """
     conf = load_model_config()
     weights = {}
-    for var, data in conf.get('control_variables', {}).items():
-        weights[var] = data.get('priority', 5)
+    for var in conf.get('control_variables', {}).keys():
+        weights[var] = 0.0
     return weights
+
+# ==============================================================================
+# 4. FORMULA ENGINE (INTEGRATED)
+# ==============================================================================
+def preprocess_formula(formula, sorted_variable_names):
+    """Wraps variable names containing spaces in backticks for Pandas eval()."""
+    processed = formula
+    for v in sorted_variable_names:
+        if ' ' in v:
+            pattern = r'(?<!`)\b' + re.escape(v) + r'\b(?!`)'
+            processed = re.sub(pattern, f"`{v}`", processed)
+    return processed
+
+def evaluate_formulas(state_map, controls_cfg, indicators_cfg, calc_vars_cfg):
+    """Evaluates formulas based on the current state_map."""
+    if not calc_vars_cfg: return {}
+    new_values = {}
+    lookup_keys = set(controls_cfg.keys()) | set(indicators_cfg.keys()) | {v.get('friendly_name', k) for k,v in calc_vars_cfg.items()}
+    sorted_vars = sorted(list(lookup_keys), key=len, reverse=True)
+    try:
+        temp_df = pd.DataFrame([state_map])
+        for _, cfg in calc_vars_cfg.items():
+            formula = cfg.get('formula')
+            friendly_name = cfg.get('friendly_name')
+            if not formula or not friendly_name: continue
+            processed_formula = preprocess_formula(formula, sorted_vars)
+            try:
+                result = temp_df.eval(processed_formula)
+                val = float(result.iloc[0])
+                new_values[friendly_name] = val
+                temp_df[friendly_name] = val
+            except Exception as e:
+                # print(f"DEBUG Error for '{friendly_name}': {e}")
+                new_values[friendly_name] = 0.0
+    except Exception: pass
+    return new_values
+
+def materialize_df(df, controls_cfg, indicators_cfg, calc_vars_cfg):
+    """Enriches a DataFrame with all calculated variables defined in the config."""
+    if df.empty or not calc_vars_cfg: return df
+    lookup_keys = set(controls_cfg.keys()) | set(indicators_cfg.keys()) | {v.get('friendly_name', k) for k, v in calc_vars_cfg.items()}
+    sorted_vars = sorted(list(lookup_keys), key=len, reverse=True)
+    enriched_df = df.copy()
+    for _, cfg in calc_vars_cfg.items():
+        formula = cfg.get('formula')
+        friendly_name = cfg.get('friendly_name')
+        if not formula or not friendly_name: continue
+        try:
+            processed_formula = preprocess_formula(formula, sorted_vars)
+            enriched_df[friendly_name] = enriched_df.eval(processed_formula)
+        except Exception:
+            if friendly_name not in enriched_df.columns: enriched_df[friendly_name] = 0.0
+    return enriched_df
+
+def generate_calculated_actions(raw_actions, state_map, controls_cfg, indicators_cfg, calc_vars_cfg):
+    """Generates 'Action' objects for derived variables."""
+    if not calc_vars_cfg: return []
+    target_context = state_map.copy()
+    for action in raw_actions:
+        target_context[action['var_name']] = action['fingerprint_set_point']
+    calculated_targets = evaluate_formulas(target_context, controls_cfg, indicators_cfg, calc_vars_cfg)
+    calculated_currents = evaluate_formulas(state_map, controls_cfg, indicators_cfg, calc_vars_cfg)
+    new_actions = []
+    for _, cfg in calc_vars_cfg.items():
+        if cfg.get('is_control'):
+            name = cfg.get('friendly_name')
+            curr_val = calculated_currents.get(name, 0.0)
+            target_val = calculated_targets.get(name, 0.0)
+            def_min, def_max = cfg.get('default_min', -9999), cfg.get('default_max', 9999)
+            target_val = max(def_min, min(def_max, target_val))
+            new_actions.append({
+                "var_name": name, "current_setpoint": curr_val,
+                "fingerprint_set_point": target_val, "final_target": target_val,
+                "diff": target_val - curr_val,
+                "reason": "Calculated (Synced)", "type": "Control", "is_calculated": True
+            })
+    return new_actions
 
 def get_setpoint_tag_map():
     """Maps Friendly Name -> PLC Write Tag"""

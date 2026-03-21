@@ -42,7 +42,16 @@ def _rename_and_format_df(df, tag_map):
     else:
         df = df.ffill()
 
-    return df.reset_index()
+    df = df.reset_index()
+
+    # Apply configured signal filtering rules
+    try:
+        import process_model
+        df = process_model.apply_signal_filters(df)
+    except Exception as e:
+        print(f"Error applying signal filters: {e}")
+
+    return df
 
 
 def get_realtime_data_window(start_time, end_time, process_tags, tag_map):
