@@ -1,4 +1,6 @@
 import eventlet
+import eventlet.hubs.selects
+eventlet.hubs.use_hub(eventlet.hubs.selects)
 eventlet.monkey_patch()
 import os
 import pandas as pd
