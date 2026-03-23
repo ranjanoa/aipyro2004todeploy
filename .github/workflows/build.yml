@@ -25,7 +25,11 @@ jobs:
         
     - name: Build with PyInstaller
       run: |
-        pyinstaller --name "CimporApp" --onedir --console --clean main.py
+        pyinstaller CimporApp.spec --clean
+        
+    - name: Clean Artifact (Exclude data/config)
+      run: |
+        if (Test-Path "dist/CimporApp/files") { Remove-Item -Recurse -Force "dist/CimporApp/files" }
         
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4

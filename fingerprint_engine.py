@@ -70,12 +70,13 @@ CACHE_DF = None
 CACHE_COV = None
 CACHE_MTIME = 0.0
 
-STATE_FILE = "files/json/engine_state.json"
+STATE_FILE = os.path.join(getattr(config, 'JSON_DIR', 'files/json'), "engine_state.json")
 
 
 def get_config_path():
     if config:
-        return getattr(config, 'HISTORICAL_DATA_CSV_PATH', "files/data/fingerprint4.csv")
+        default_path = os.path.join(getattr(config, 'DATA_DIR', 'files/data'), "fingerprint4.csv")
+        return getattr(config, 'HISTORICAL_DATA_CSV_PATH', default_path)
     return "files/data/fingerprint4.csv"
 
 
