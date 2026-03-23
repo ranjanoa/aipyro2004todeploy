@@ -33,10 +33,13 @@ jobs:
         
     - name: Flatten Artifact (Remove _internal)
       run: |
+        dir dist/CimporApp/
         if (Test-Path "dist/CimporApp/_internal") {
-          Move-Item "dist/CimporApp/_internal/*" "dist/CimporApp/" -Force
+          Write-Host "Flattening _internal folder..."
+          Get-ChildItem -Path "dist/CimporApp/_internal/*" | Move-Item -Destination "dist/CimporApp/" -Force
           Remove-Item "dist/CimporApp/_internal" -Recurse -Force
         }
+        dir dist/CimporApp/
         
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
