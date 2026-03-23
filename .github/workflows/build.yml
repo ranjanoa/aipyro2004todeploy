@@ -27,22 +27,8 @@ jobs:
       run: |
         pyinstaller CimporApp.spec --clean
         
-    - name: Clean Artifact (Exclude data/config)
-      run: |
-        if (Test-Path "dist/CimporApp/files") { Remove-Item -Recurse -Force "dist/CimporApp/files" }
-        
-    - name: Flatten Artifact (Remove _internal)
-      run: |
-        dir dist/CimporApp/
-        if (Test-Path "dist/CimporApp/_internal") {
-          Write-Host "Flattening _internal folder..."
-          Get-ChildItem -Path "dist/CimporApp/_internal/*" | Move-Item -Destination "dist/CimporApp/" -Force
-          Remove-Item "dist/CimporApp/_internal" -Recurse -Force
-        }
-        dir dist/CimporApp/
-        
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: CimporApp-Windows
-        path: dist/CimporApp/
+        name: CimporApp-Build
+        path: dist/CimporApp.exe

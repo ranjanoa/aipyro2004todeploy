@@ -97,8 +97,8 @@ file_handler.setFormatter(log_formatter)
 logger.addHandler(file_handler)
 
 # Ensure the APP_DIR variables exist via config
-template_dir = os.path.join(config.APP_DIR, 'templates')
-static_dir = os.path.join(config.APP_DIR, 'static')
+template_dir = os.path.join(config.BASE_DIR, 'templates')
+static_dir = os.path.join(config.BASE_DIR, 'static')
 
 app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 CORS(app, resources={r"/*": {"origins": "*"}})
