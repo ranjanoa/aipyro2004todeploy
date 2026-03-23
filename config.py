@@ -43,6 +43,8 @@ DB_BUCKET = "cimporAI"
 
 # Measurements (Tables)
 DB_MEASUREMENT = "kiln1"
+DB_MEASUREMENT_OPC = "kiln1_opc"
+DB_MEASUREMENT_PI = "kiln1_pi"
 DB_MEASUREMENT_SETPOINTS = "kiln2"
 DB_MEASUREMENT_AUTH = "auth"
 

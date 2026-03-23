@@ -62,7 +62,7 @@ def get_realtime_data_window(start_time, end_time, process_tags, tag_map):
     query = f'''
     from(bucket: "{config.DB_BUCKET}")
       |> range(start: {start_time.isoformat()}Z, stop: {end_time.isoformat()}Z)
-      |> filter(fn: (r) => r["_measurement"] == "{config.DB_MEASUREMENT}")
+      |> filter(fn: (r) => r["_measurement"] == "{config.DB_MEASUREMENT_OPC}" or r["_measurement"] == "{config.DB_MEASUREMENT_PI}" or r["_measurement"] == "{config.DB_MEASUREMENT}")
       |> filter(fn: (r) => {field_filters})
       |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
     '''
