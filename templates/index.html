@@ -616,11 +616,15 @@
             <div id="config-table-view" class="flex flex-col gap-6 pb-8">
                 <div class="glass-panel overflow-hidden border border-white/5">
                     <div class="p-3 bg-white/5 border-b border-white/10 flex justify-between items-center">
-                        <h4 class="text-xs font-black text-[#ebf552] uppercase tracking-tighter">AI Core Bindings</h4>
-                        <span class="text-[9px] text-gray-500 font-bold">Maps AI roles to process tags</span>
+                        <h4 class="text-xs font-black text-[#ebf552] uppercase tracking-tighter">Active Optimization Strategy</h4>
                     </div>
                     <div class="p-4 bg-[#0e2229]/50">
-                        <div id="config-ai-bindings" class="grid grid-cols-2 gap-6"></div>
+                        <div class="flex items-center gap-4">
+                            <div class="flex-1">
+                                <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Select Strategy</label>
+                                <select id="config-active-strategy" class="w-full bg-[#122a33] border border-[#476570] text-blue-400 font-bold rounded p-2 outline-none transition-all focus:border-[#ebf552]"></select>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -638,7 +642,8 @@
                                     <th class="px-2 py-3">Max</th>
                                     <th class="px-2 py-3">Priority</th>
                                     <th class="px-2 py-3">Nudge</th>
-                                    <th class="px-4 py-3 text-center">AI En</th>
+                                    <th class="px-3 py-3 text-center">AI Enable</th>
+                                    <th class="px-3 py-3 text-center">Filtering</th>
                                 </tr>
                             </thead>
                             <tbody id="config-controls-body" class="divide-y divide-white/5"></tbody>
@@ -647,16 +652,29 @@
                 </div>
 
                 <div class="glass-panel overflow-hidden border border-white/5">
-                    <div class="p-3 bg-white/5 border-b border-white/10">
-                        <h4 class="text-xs font-black text-[#ebf552] uppercase tracking-tighter">Optimization Strategy Target</h4>
+                    <div class="p-3 bg-white/5 border-b border-white/10 flex justify-between items-center">
+                        <h4 class="text-xs font-black text-[#ebf552] uppercase tracking-tighter">Indicator Variables (Signal Filtering)</h4>
                     </div>
-                    <div class="p-6 bg-[#0e2229]/50 border-b border-white/10">
-                        <div class="flex items-center gap-8">
-                            <div class="flex-1"><label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Target Variable</label><select id="config-opt-target" class="w-full bg-[#122a33] border border-[#476570] text-blue-400 font-bold rounded p-2 outline-none"></select></div>
-                            <div class="w-48"><label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Target Setpoint</label><input type="number" id="config-opt-setpoint" class="w-full bg-[#122a33] border border-[#476570] text-ai-cyan font-mono font-bold rounded p-2 outline-none"></div>
-                        </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-[11px]">
+                            <thead>
+                                <tr class="bg-[#122a33] text-gray-400 uppercase font-black border-b border-[#476570]">
+                                    <th class="px-4 py-3">Variable Name</th>
+                                    <th class="px-2 py-3">Unit</th>
+                                    <th class="px-2 py-3">Min</th>
+                                    <th class="px-2 py-3">Max</th>
+                                    <th class="px-2 py-3">Priority</th>
+                                    <th class="px-2 py-3">Nudge</th>
+                                    <th class="px-4 py-3 text-center">Filtering</th>
+                                </tr>
+                            </thead>
+                            <tbody id="config-indicators-body" class="divide-y divide-white/5"></tbody>
+                        </table>
                     </div>
-                    <div class="p-4 bg-white/5 flex justify-end"><button onclick="saveTableConfig()" class="px-8 py-2.5 bg-[#ebf552] text-[#122a33] text-xs font-black uppercase rounded shadow-lg hover:brightness-110 active:scale-95 transition-all">Apply Changes</button></div>
+                </div>
+                
+                <div class="flex justify-end pt-2">
+                    <button onclick="saveTableConfig()" class="px-8 py-2.5 bg-[#ebf552] text-[#122a33] text-xs font-black uppercase rounded shadow-lg hover:brightness-110 active:scale-95 transition-all">Apply Changes</button>
                 </div>
             </div>
 
@@ -2324,77 +2342,76 @@
         }
 
         function populateConfigUI(cfg) {
-            const bindContainer = document.getElementById('config-ai-bindings');
-            bindContainer.innerHTML = '';
-
-            if (cfg.ai_bindings) {
-                const b = cfg.ai_bindings;
-                const fields = [
-                    { label: "Primary Control", key: "primary_control_actor", val: b.primary_control_actor },
-                    { label: "Primary Target", key: "primary_prediction_target", val: b.primary_prediction_target }
-                ];
-                fields.forEach(f => {
-                    bindContainer.innerHTML += `
-                        <div>
-                            <label class="text-[9px] font-bold text-gray-500 uppercase block mb-1">${f.label}</label>
-                            <input type="text" id="bind-${f.key}" value="${f.val}" class="w-full bg-[#122a33] border border-[#476570] text-white text-xs p-2 rounded outline-none focus:border-[#ebf552]">
-                        </div>`;
+            // Populate Active Strategy Selector
+            const strategySel = document.getElementById('config-active-strategy');
+            strategySel.innerHTML = '';
+            if (cfg.strategies) {
+                Object.keys(cfg.strategies).sort().forEach(sKey => {
+                    const opt = document.createElement('option');
+                    opt.value = sKey;
+                    opt.text = sKey;
+                    if (sKey === cfg.active_strategy) opt.selected = true;
+                    strategySel.appendChild(opt);
                 });
             }
 
             const ctrlBody = document.getElementById('config-controls-body');
+            const indBody = document.getElementById('config-indicators-body');
             ctrlBody.innerHTML = '';
+            indBody.innerHTML = '';
+
+            const renderRow = (key, c, isMV) => {
+                const isFilteringEnabled = (c.filtering && c.filtering.enabled) ? 'checked' : '';
+                const isAIPC = c.aipc ? 'checked' : '';
+                
+                return `
+                    <tr class="hover:bg-white/5 transition-colors group">
+                        <td class="px-4 py-2 font-bold text-gray-300">${key}</td>
+                        <td class="px-2 py-2 text-gray-500 font-mono">${c.unit || ''}</td>
+                        <td class="px-2 py-2"><input type="number" data-tag="${key}" data-field="default_min" value="${c.default_min ?? 0}" class="w-16 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-blue-300"></td>
+                        <td class="px-2 py-2"><input type="number" data-tag="${key}" data-field="default_max" value="${c.default_max ?? 0}" class="w-16 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-blue-300"></td>
+                        <td class="px-2 py-2"><input type="number" data-tag="${key}" data-field="priority" value="${c.priority ?? 5}" class="w-12 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-yellow-500 font-bold"></td>
+                        <td class="px-2 py-2"><input type="number" step="0.01" data-tag="${key}" data-field="nudge_speed" value="${c.nudge_speed ?? 0.05}" class="w-14 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-gray-400"></td>
+                        ${isMV ? `<td class="px-3 py-2 text-center"><input type="checkbox" data-tag="${key}" data-field="aipc" ${isAIPC} class="w-4 h-4 accent-[#ebf552]"></td>` : ''}
+                        <td class="px-3 py-2 text-center"><input type="checkbox" data-tag="${key}" data-field="filtering_enabled" ${isFilteringEnabled} class="w-4 h-4 accent-[#ebf552]"></td>
+                    </tr>`;
+            };
 
             if (cfg.control_variables) {
                 Object.keys(cfg.control_variables).sort().forEach(key => {
-                    const c = cfg.control_variables[key];
-                    const isChecked = c.aipc ? 'checked' : '';
-                    ctrlBody.innerHTML += `
-                        <tr class="hover:bg-white/5 transition-colors group">
-                            <td class="px-4 py-2 font-bold text-gray-300">${key}</td>
-                            <td class="px-2 py-2 text-gray-500 font-mono">${c.unit || ''}</td>
-                            <td class="px-2 py-2"><input type="number" data-tag="${key}" data-field="default_min" value="${c.default_min}" class="w-16 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-blue-300"></td>
-                            <td class="px-2 py-2"><input type="number" data-tag="${key}" data-field="default_max" value="${c.default_max}" class="w-16 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-blue-300"></td>
-                            <td class="px-2 py-2"><input type="number" data-tag="${key}" data-field="priority" value="${c.priority}" class="w-12 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-yellow-500 font-bold"></td>
-                            <td class="px-2 py-2"><input type="number" step="0.01" data-tag="${key}" data-field="nudge_speed" value="${c.nudge_speed || 0.05}" class="w-14 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-gray-400"></td>
-                            <td class="px-4 py-2 text-center"><input type="checkbox" data-tag="${key}" data-field="aipc" ${isChecked} class="w-4 h-4 accent-[#ebf552]"></td>
-                        </tr>`;
+                    ctrlBody.innerHTML += renderRow(key, cfg.control_variables[key], true);
                 });
             }
-
-            const optTargetSel = document.getElementById('config-opt-target');
-            optTargetSel.innerHTML = '';
-
-            const allTags = [...Object.keys(cfg.control_variables || {}), ...Object.keys(cfg.indicator_variables || {})].sort();
-            allTags.forEach(t => {
-                const opt = document.createElement('option');
-                opt.value = t; opt.text = t;
-                if (cfg.optimization_settings && t === cfg.optimization_settings.target_variable) { opt.selected = true; }
-                optTargetSel.appendChild(opt);
-            });
-
-            if (cfg.optimization_settings) { document.getElementById('config-opt-setpoint').value = cfg.optimization_settings.target_setpoint; }
+            if (cfg.indicator_variables) {
+                Object.keys(cfg.indicator_variables).sort().forEach(key => {
+                    indBody.innerHTML += renderRow(key, cfg.indicator_variables[key], false);
+                });
+            }
         }
 
         async function saveTableConfig() {
             const cfg = JSON.parse(JSON.stringify(currentModelConfig));
 
-            if (cfg.ai_bindings) {
-                cfg.ai_bindings.primary_control_actor = document.getElementById('bind-primary_control_actor').value;
-                cfg.ai_bindings.primary_prediction_target = document.getElementById('bind-primary_prediction_target').value;
-            }
+            // Save Active Strategy
+            cfg.active_strategy = document.getElementById('config-active-strategy').value;
 
-            document.querySelectorAll('#config-controls-body input').forEach(input => {
-                const tag = input.getAttribute('data-tag'); const field = input.getAttribute('data-field');
-                if (cfg.control_variables[tag]) {
-                    if (input.type === 'checkbox') { cfg.control_variables[tag][field] = input.checked; } 
-                    else { cfg.control_variables[tag][field] = parseFloat(input.value); }
+            // Harvest values from both tables
+            document.querySelectorAll('#config-controls-body input, #config-indicators-body input').forEach(input => {
+                const tag = input.getAttribute('data-tag'); 
+                const field = input.getAttribute('data-field');
+                const targetObj = cfg.control_variables[tag] || cfg.indicator_variables[tag];
+                
+                if (targetObj) {
+                    if (field === 'filtering_enabled') {
+                        if (!targetObj.filtering) targetObj.filtering = { ema_alpha: 0.2, median_window: 3 };
+                        targetObj.filtering.enabled = input.checked;
+                    } else if (input.type === 'checkbox') {
+                        targetObj[field] = input.checked;
+                    } else {
+                        targetObj[field] = parseFloat(input.value);
+                    }
                 }
             });
-
-            if (!cfg.optimization_settings) cfg.optimization_settings = {};
-            cfg.optimization_settings.target_variable = document.getElementById('config-opt-target').value;
-            cfg.optimization_settings.target_setpoint = parseFloat(document.getElementById('config-opt-setpoint').value);
 
             try {
                 const res = await fetch(`${API_URL}/api/config`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });

@@ -130,39 +130,39 @@ def ensure_calculated_columns(df):
     If missing, materializes them and saves the updated DF back to CSV and Parquet.
     """
     if df is None or df.empty: return df
-    
+
     conf = get_model_config_safe()
     calc_cfg = conf.get('calculated_variables', {})
     if not calc_cfg: return df
-    
+
     # Check for missing columns
     # We use friendly_name as the column identifier
-    missing = [cfg.get('friendly_name') for k,cfg in calc_cfg.items() 
+    missing = [cfg.get('friendly_name') for k,cfg in calc_cfg.items()
                if cfg.get('friendly_name') not in df.columns and cfg.get('friendly_name')]
-    
+
     if missing:
         engine_logger.info(f"⚡ Missing calculated columns in history: {missing}. Materializing...")
         controls_cfg = conf.get('control_variables', {})
         indicators_cfg = conf.get('indicator_variables', {})
-        
+
         # Enrich
         enriched_df = process_model.materialize_df(df, controls_cfg, indicators_cfg, calc_cfg)
-        
+
         # Save back to CSV
         csv_path = get_config_path()
         parquet_path = csv_path.replace('.csv', '.parquet')
         try:
             enriched_df.to_csv(csv_path, index=False)
             engine_logger.info(f"✅ CSV enriched and saved: {csv_path}")
-            
+
             # Also update Parquet so next load is instant
             enriched_df.to_parquet(parquet_path, engine='pyarrow')
             engine_logger.info(f"✅ Parquet cache updated: {parquet_path}")
         except Exception as e:
             engine_logger.error(f"❌ Failed to save enriched dataset: {e}")
-            
+
         return enriched_df
-    
+
     return df
 
 
@@ -173,11 +173,11 @@ def robust_read_csv(file_path):
         if os.path.exists(parquet_path):
             csv_mtime = os.path.getmtime(file_path) if os.path.exists(file_path) else 0
             parquet_mtime = os.path.getmtime(parquet_path)
-            
+
             if csv_mtime <= parquet_mtime:
                 df = pd.read_parquet(parquet_path)
                 engine_logger.info(f"Loaded Parquet file instantly with {len(df)} rows.")
-                
+
                 # Double check if any NEW calculated variables were added to config since last save
                 enriched_df = ensure_calculated_columns(df)
                 return enriched_df
@@ -236,7 +236,7 @@ def map_tags_to_friendly_names(current_state_map, controls_cfg, indicators_cfg, 
         if 'tag_name' in cfg: opc_lookup[cfg['tag_name']] = friendly_name
     for key, value in current_state_map.items():
         if key in opc_lookup: mapped_state[opc_lookup[key]] = value
-    
+
     # NEW: Evaluate formulas after mapping raw tags
     if calc_vars_cfg:
         mapped_state.update(process_model.evaluate_formulas(mapped_state, controls_cfg, indicators_cfg, calc_vars_cfg))
@@ -574,14 +574,14 @@ def _calculate_core_score(row, current_state, controls_cfg, weights=None, active
                     weight = float(multipliers.get(str(prio), 1.0)) if is_advanced else 1.0
                     raw_delta = abs(curr_val - hist_val) / abs(curr_val)
                     # Safety Cap: Prevent division-by-near-zero explosion. Max 300% distance penalty per tag.
-                    normalised_delta = min(raw_delta, 3.0) 
+                    normalised_delta = min(raw_delta, 3.0)
                     dist_sum += (normalised_delta ** 2) * weight
 
         p_weight = scoring_cfg.get('distance_penalty_weight', penalty_weight)
         # Cap absolute total penalty to prevent wiping out scores past the -900000 gate
         total_penalty = dist_sum * p_weight
         if total_penalty > 800000:
-            total_penalty = 800000 
+            total_penalty = 800000
         score -= total_penalty
 
     # 3. SLOPE / DIRECTIONAL TREND BONUS (Bug #3 Fix)
@@ -702,13 +702,13 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
     if historical_df.empty or not frontend_strategy: return []
 
     initial_count = len(historical_df)
-    
+
     if HAS_PROCESS_MODEL and process_model:
         all_vars_cfg = {**process_model.get_control_variables(), **process_model.get_indicator_variables()}
     else:
         full_config = get_model_config_safe()
         all_vars_cfg = {**full_config.get('control_variables', {}), **full_config.get('indicator_variables', {})}
-    
+
     engine_logger.info(f"[SEARCH] Starting optimization on total dataset of {initial_count} rows.")
 
     valid_history = apply_golden_filter(historical_df.copy())
@@ -778,7 +778,7 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
                             df.write(f"Target range: [{eff_min:.4f} to {eff_max:.4f}]\n")
                             df.write(f"Config Limits: [{abs_min:.1f} to {abs_max:.1f}]\n")
                     except: pass
-                    
+
                     engine_logger.warning(f"[SEARCH] '{phase['name']}' FAILED at tag '{tag}'. Val: {cur_val:.2f}, Target: [{eff_min:.2f} - {eff_max:.2f}]")
                     break
             except:
@@ -826,7 +826,7 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
             cfg_var = all_vars_cfg.get(t, {})
             prio = int(cfg_var.get('priority', 3))
             is_calc = cfg_var.get('is_calculated', False) or 'formula' in cfg_var
-            
+
             if prio == 0 or is_calc:
                 continue
             scoring_tags.append(t)
@@ -904,7 +904,7 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
 
     for _, r in df_sorted.iterrows():
         match_ts = r.get(ts_col)
-        
+
         # 1. Temporal Diversity Check
         is_diverse = True
         for existing in stable_rows:
@@ -912,13 +912,13 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
             if abs((match_ts - existing_ts).total_seconds()) < (DIVERSITY_MINUTES * 60):
                 is_diverse = False
                 break
-        
+
         if not is_diverse: continue
 
         # 2. Stability Check
         if check_future_stability(historical_df, match_ts):
             stable_rows.append(r)
-        
+
         if len(stable_rows) >= 5: break
 
     return stable_rows
@@ -1128,7 +1128,7 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
 
                     # TSR and SHC always included
                     for kpi_tag, kpi_key in [('% TSR Kiln Inst', 'tsr_at_match'),
-                                             ('Specfical Heat Consumption Inst', 'shc_at_match')]:
+                                             ('Specific Heat Consumption Inst', 'shc_at_match')]:
                         if kpi_tag in best:
                             match_meta[kpi_key] = round(float(best.get(kpi_tag, 0)), 2)
 
@@ -1186,12 +1186,12 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
             tgt = align_magnitude(float(target_vals.get(tag, curr)), curr)
 
             gap = tgt - curr
-            
+
             # Use variable-specific nudge_speed (expert-tuned in JSON) or global step_fraction
             var_speed = cfg_var.get('nudge_speed', step_fraction)
             # Calculate a CONSTANT step size (e.g., 25% of the current value)
             constant_step = abs(curr) * var_speed
-            
+
             # If the gap is larger than our constant step, take the full constant step
             if abs(gap) > constant_step:
                 step = constant_step if gap > 0 else -constant_step

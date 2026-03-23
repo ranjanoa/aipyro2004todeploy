@@ -192,7 +192,6 @@ def background_data_emitter():
                     calculated_vals = process_model.evaluate_formulas(latest, controls_cfg, indicators_cfg, calc_vars_cfg)
                     if calculated_vals:
                         latest.update(calculated_vals)
-                        print(f"DEBUG Emitter: Merged {len(calculated_vals)} calc vars.")
 
                     # Convert timestamps for JSON serialization
                     if config.TIMESTAMP_COLUMN in latest:
