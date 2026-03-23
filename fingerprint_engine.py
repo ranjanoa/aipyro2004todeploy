@@ -35,6 +35,14 @@ def setup_logging():
             os.makedirs("logs", exist_ok=True)
         fh = logging.FileHandler("logs/fingerprint_debug.log", encoding='utf-8')
         fh.setLevel(logging.INFO)
+        # Fix: Windows console (cp1252) can't render emoji (⚡, ✅, ❌).
+        # Reconfigure stdout to UTF-8 so log messages with unicode chars work.
+        import sys
+        if hasattr(sys.stdout, 'reconfigure'):
+            try:
+                sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+            except Exception:
+                pass
         ch = logging.StreamHandler()
         ch.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
