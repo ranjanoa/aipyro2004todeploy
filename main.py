@@ -1,7 +1,3 @@
-import eventlet
-import eventlet.hubs.selects
-eventlet.hubs.use_hub(eventlet.hubs.selects)
-eventlet.monkey_patch()
 import os
 import pandas as pd
 import sys
@@ -103,9 +99,8 @@ template_dir = os.path.join(config.BASE_DIR, 'templates')
 static_dir = os.path.join(config.BASE_DIR, 'static')
 
 app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
-CORS(app, resources={r"/*": {"origins": "*"}})
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 app.config.from_object('config')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 
 # Note: We use config.CONTROL_MODE instead of a local variable now.
