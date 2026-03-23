@@ -31,6 +31,13 @@ jobs:
       run: |
         if (Test-Path "dist/CimporApp/files") { Remove-Item -Recurse -Force "dist/CimporApp/files" }
         
+    - name: Flatten Artifact (Remove _internal)
+      run: |
+        if (Test-Path "dist/CimporApp/_internal") {
+          Move-Item "dist/CimporApp/_internal/*" "dist/CimporApp/" -Force
+          Remove-Item "dist/CimporApp/_internal" -Recurse -Force
+        }
+        
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
       with:
