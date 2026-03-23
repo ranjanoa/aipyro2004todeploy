@@ -16,7 +16,7 @@ if not getattr(sys, 'frozen', False):
     else:
         print("Warning: Virtual environment not found. Running with system Python.")
 
-# 🚀 SILENCE OPC LOGS (Critical for Performance)
+# [START] SILENCE OPC LOGS (Critical for Performance)
 # This prevents the console from flooding with "received header"
 logging.getLogger("opcua").setLevel(logging.WARNING)
 logging.getLogger("asyncua").setLevel(logging.WARNING)
@@ -44,10 +44,10 @@ def load_external_module(module_name, file_name):
             module = importlib.util.module_from_spec(spec)
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
-            print(f"✅ Loaded external override for module: {module_name}")
+            print(f"[OK] Loaded external override for module: {module_name}")
             return True
         except Exception as e:
-            print(f"❌ Failed to load external module {module_name}: {e}")
+            print(f"[ERR] Failed to load external module {module_name}: {e}")
     return False
 
 # Attempt to load external configs BEFORE they are imported by anything else
@@ -65,7 +65,7 @@ import fingerprint_engine
 try:
     from modules.ai_core import mbrl_manager
 except ImportError:
-    print("⚠️ AI Module (mbrl_manager) not found. AI Strategy will be disabled.")
+    print("[WARN] AI Module (mbrl_manager) not found. AI Strategy will be disabled.")
     mbrl_manager = None
 
 import control_service  # <--- REQUIRED for PLC Control
@@ -186,7 +186,7 @@ def background_data_emitter():
                     indicators_cfg = conf.get('indicator_variables', {})
                     latest = df.iloc[-1].to_dict()
 
-                    # 🚀 LIVE CALCULATION: Evaluate all formulas for current state
+                    # [LIVE CALC] Evaluate all formulas for current state
                     # Correct order: (state_map, controls_cfg, indicators_cfg, calc_vars_cfg)
                     calculated_vals = process_model.evaluate_formulas(latest, controls_cfg, indicators_cfg, calc_vars_cfg)
                     if calculated_vals:
@@ -258,7 +258,7 @@ def automated_control_loop():
                         is_stalled = True
                         if loop_counter == 0:
                             logger.warning(
-                                f"⚠️ DATA STALL: Last data was {delay:.1f}s ago (Limit: {MAX_DATA_DELAY_SECONDS}s)")
+                                f"[WARN] DATA STALL: Last data was {delay:.1f}s ago (Limit: {MAX_DATA_DELAY_SECONDS}s)")
 
             # --- SAFETY ENFORCEMENT (PAUSE LOGIC) ---
             if is_stalled:
@@ -267,7 +267,7 @@ def automated_control_loop():
 
                 # 2. Update UI to show "PAUSED" state, but do NOT disengage config.CONTROL_MODE
                 if current_mode > 0 and loop_counter == 0:
-                    logger.warning("⏸️ SYSTEM PAUSED: Waiting for data connectivity...")
+                    logger.warning("[PAUSE] SYSTEM PAUSED: Waiting for data connectivity...")
                     socketio.emit('autopilot_update', {
                         "match_score": "SYSTEM-PAUSED",
                         "actions": [],
@@ -330,7 +330,7 @@ def automated_control_loop():
                             recommendation['match_score'] = "MONITOR"
 
                     if current_mode > 0 and recommendation and isinstance(recommendation, dict):
-                        # 🚀 LIVE SETPOINT SYNC: Inject calculated actions (Priority 0)
+                        # [LIVE SETPOINT SYNC] Inject calculated actions (Priority 0)
                         conf = process_model.load_model_config()
                         calc_cfg = conf.get('calculated_variables', {})
                         controls_cfg = conf.get('control_variables', {})
@@ -351,7 +351,7 @@ def automated_control_loop():
 
                         score = recommendation.get('match_score', '0')
                         if score == "SAFETY-CLAMP":
-                            logger.warning("🛡️ Guardian Blocked Control")
+                            logger.warning("[SEC] Guardian Blocked Control")
                         else:
                             setpoints = {}
                             for action in recommendation.get('actions', []):

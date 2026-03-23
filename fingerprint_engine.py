@@ -35,7 +35,7 @@ def setup_logging():
             os.makedirs("logs", exist_ok=True)
         fh = logging.FileHandler("logs/fingerprint_debug.log", encoding='utf-8')
         fh.setLevel(logging.INFO)
-        # Fix: Windows console (cp1252) can't render emoji (⚡, ✅, ❌).
+        # Fix: Windows console (cp1252) can't render emoji ([INIT], [OK], [ERR]).
         # Reconfigure stdout to UTF-8 so log messages with unicode chars work.
         import sys
         if hasattr(sys.stdout, 'reconfigure'):
@@ -150,7 +150,7 @@ def ensure_calculated_columns(df):
                if cfg.get('friendly_name') not in df.columns and cfg.get('friendly_name')]
 
     if missing:
-        engine_logger.info(f"⚡ Missing calculated columns in history: {missing}. Materializing...")
+        engine_logger.info(f"[INIT] Missing calculated columns in history: {missing}. Materializing...")
         controls_cfg = conf.get('control_variables', {})
         indicators_cfg = conf.get('indicator_variables', {})
 
@@ -162,13 +162,13 @@ def ensure_calculated_columns(df):
         parquet_path = csv_path.replace('.csv', '.parquet')
         try:
             enriched_df.to_csv(csv_path, index=False)
-            engine_logger.info(f"✅ CSV enriched and saved: {csv_path}")
+            engine_logger.info(f"[OK] CSV enriched and saved: {csv_path}")
 
             # Also update Parquet so next load is instant
             enriched_df.to_parquet(parquet_path, engine='pyarrow')
-            engine_logger.info(f"✅ Parquet cache updated: {parquet_path}")
+            engine_logger.info(f"[OK] Parquet cache updated: {parquet_path}")
         except Exception as e:
-            engine_logger.error(f"❌ Failed to save enriched dataset: {e}")
+            engine_logger.error(f"[ERR] Failed to save enriched dataset: {e}")
 
         return enriched_df
 
