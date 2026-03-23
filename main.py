@@ -1,3 +1,5 @@
+import eventlet
+eventlet.monkey_patch()
 import os
 import pandas as pd
 import sys
@@ -100,7 +102,7 @@ static_dir = os.path.join(config.APP_DIR, 'static')
 
 app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 CORS(app, resources={r"/*": {"origins": "*"}})
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 app.config.from_object('config')
 
 
