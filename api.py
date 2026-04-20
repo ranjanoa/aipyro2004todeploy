@@ -123,6 +123,10 @@ def toggle_autopilot():
                     msg = "Engaged: Fingerprint Auto-Search"
             # === END OF CHANGED BLOCK ===
 
+            elif strategy == 'HYBRID':
+                config.CONTROL_MODE = 3
+                msg = "Engaged: Hybrid Auto-Arbitration Mode"
+
             else:
                 config.CONTROL_MODE = 0
                 msg = "Unknown Strategy"
@@ -151,6 +155,20 @@ def toggle_autopilot():
 # ==============================================================================
 # 1b. STATUS CHECK
 # ==============================================================================
+@api_routes.route('/fingerprint/mode', methods=['POST'])
+@cross_origin()
+def set_fingerprint_mode():
+    """Update the preferred fingerprint search mode (AUTO/MANUAL) without engaging."""
+    try:
+        data = request.get_json()
+        mode = data.get('mode', 'AUTO')
+        config.FINGERPRINT_MODE_TYPE = mode
+        save_system_state()
+        return jsonify({"status": "success", "mode": mode})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @api_routes.route('/status', methods=['GET'])
 @cross_origin()
 def get_system_status():
@@ -212,14 +230,25 @@ def find_fingerprint():
                 start_time = end_time - timedelta(minutes=30)
                 real_df = database.get_realtime_data_window(start_time, end_time, list(tag_map.keys()), tag_map)
 
-                future_df = pd.DataFrame([reconstructed_row] * 30)
+                # Reconstruct process context
+                controls_cfg = process_model.get_control_variables()
+                indicators_cfg = process_model.get_indicator_variables()
+                
+                # ARCHIVAL FIX: Calculate teal similarity for the engaged manual target
+                sim_pct = fingerprint_engine.calculate_match_percentage(
+                    current_state.to_dict() if hasattr(current_state, 'to_dict') else dict(current_state), 
+                    reconstructed_row, 
+                    controls_cfg,
+                    indicators_cfg
+                )
 
-                api_obj = process_model.build_api_response(real_df, reconstructed_row, future_df, 100, 100, 0)
+                future_df = pd.DataFrame([reconstructed_row] * 30)
+                api_obj = process_model.build_api_response(real_df, reconstructed_row, future_df, sim_pct, 0, 0)
 
                 if 'fingerprint_timestamp' in saved_target:
                     api_obj['fingerprint_timestamp'] = saved_target['fingerprint_timestamp']
 
-                api_obj['match_score'] = "MANUAL - LOCKED"
+                api_obj['match_score'] = sim_pct
 
                 return jsonify({"data": [api_obj]})
             except Exception as e:
@@ -259,6 +288,7 @@ def find_fingerprint():
 
         weights = process_model.get_optimization_weights()
         controls_cfg = process_model.get_control_variables()
+        indicators_cfg = process_model.get_indicator_variables()
 
         # THIS RETURNS BATCHES 1-5
         final_timestamps = fingerprint_engine.rank_and_select_recommendations(
@@ -278,13 +308,25 @@ def find_fingerprint():
                     padding = [pred_df.iloc[-1]] * (future_time - len(pred_df))
                     pred_df = pd.concat([pred_df, pd.DataFrame(padding)])
 
-                api_obj = process_model.build_api_response(real_df, row, pred_df, 0, 0, 0)
+                # Calculate real similarity score for EVERY search result
+                sim_pct = fingerprint_engine.calculate_match_percentage(
+                    current_state.to_dict() if hasattr(current_state, 'to_dict') else dict(current_state), 
+                    row.to_dict() if hasattr(row, 'to_dict') else dict(row), 
+                    controls_cfg,
+                    indicators_cfg
+                )
+
+                api_obj = process_model.build_api_response(real_df, row, pred_df, sim_pct, 0, 0)
                 formatted_results.append(api_obj)
             except Exception as e:
                 continue
 
         if not formatted_results:
             return jsonify({"data": [process_model.build_no_fingerprint_response(current_state)]})
+
+        # Ensure that the batches sent to the UI are ALWAYS strictly ordered 
+        # by the physical Match Percentage descending (Highest similarity = Batch 1)
+        formatted_results.sort(key=lambda x: float(x.get('match_score', 0)), reverse=True)
 
         return jsonify({"data": formatted_results})
 

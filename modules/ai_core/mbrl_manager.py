@@ -368,6 +368,8 @@ def get_optimal_action(current_real_df):
     })
 
     if _world_model is None: _initialize_system()
+    if _env_config is None:
+        return {"match_score": "AI-INIT-FAILED", "timestamp": str(datetime.now()), "actions": [], "confidence": 0.0}
     if current_real_df.empty:
         return {"match_score": "WAITING", "timestamp": str(datetime.now()), "actions": []}
 
@@ -397,12 +399,20 @@ def get_optimal_action(current_real_df):
 
     obs_tensor = torch.FloatTensor(obs).unsqueeze(0).to(device)
 
+    strat_name = full_config.get('active_strategy', 'BALANCED')
+    strat_cfg = full_config.get('strategies', {}).get(strat_name, {})
+    strat_weights = strat_cfg.get('weights', {})
     raw_ai_targets = {}
+
     if SAC_AVAILABLE and _sac_agent is not None:
         action_norm = _sac_agent.select_action(obs, evaluate=True)
         action_real = _denormalize(action_norm, 'action')
         for i, tag in enumerate(a_cols):
-            raw_ai_targets[tag] = float(action_real[i])
+            val = float(action_real[i])
+            # Apply real-time Strategy Nudge
+            if tag in strat_weights:
+                val *= (1.0 + float(strat_weights[tag]))
+            raw_ai_targets[tag] = val
     else:
         for tag in a_cols:
             raw_ai_targets[tag] = float(latest_vals.get(tag, 0))
@@ -413,12 +423,16 @@ def get_optimal_action(current_real_df):
     if _world_model is not None:
         _, variance = _world_model.predict(obs_tensor)
         raw_var = variance.mean().item()
-        val_confidence = max(0, min(100, 100 - (raw_var * 1000)))
+        
+        # Shield against Python's silent min/max NaN override
+        if np.isnan(raw_var) or np.isinf(raw_var):
+            val_confidence = 0.0
+        else:
+            val_confidence = max(0, min(100, 100 - (raw_var * 1000)))
+            
         pred_temps = predict_soft_sensor_rollout(current_real_df, target_var_name, steps=15)
         val_prediction = pred_temps[-1] if pred_temps else 0.0
 
-        # Guard against API crash for confidence/prediction
-        if np.isnan(val_confidence) or np.isinf(val_confidence): val_confidence = 0.0
         if np.isnan(val_prediction) or np.isinf(val_prediction): val_prediction = 0.0
 
     soft_sensors = {}
@@ -464,6 +478,7 @@ def get_optimal_action(current_real_df):
 
     return {
         "match_score": "SAC-MBRL" if SAC_AVAILABLE else "AI-ASSIST",
+        "confidence": val_confidence,
         "timestamp": str(datetime.now()),
         "actions": ui_actions,
         "debug_message": "Policy Active (Ramping)",

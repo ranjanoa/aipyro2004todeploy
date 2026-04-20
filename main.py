@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import sys
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from datetime import datetime, timedelta
@@ -59,7 +59,7 @@ import config
 import database
 import process_model
 import fingerprint_engine
- # formula_processor removed
+
 
 # Wrap AI import in try/except so it doesn't crash if you are only testing Fingerprint
 try:
@@ -164,6 +164,12 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/favicon.ico')
+def favicon():
+    """Serves the favicon from the root directory."""
+    return send_from_directory(os.getcwd(), 'logo.ico', mimetype='image/vnd.microsoft.icon')
+
+
 # --- BACKGROUND TASK: Data Stream ---
 def background_data_emitter():
     """Reads real-time data from InfluxDB and pushes it to the UI every 2 seconds."""
@@ -222,6 +228,17 @@ def automated_control_loop():
 
     # SAFETY THRESHOLD (Adjust as needed)
     MAX_DATA_DELAY_SECONDS = 120
+
+    # Physics Buffer for Heat Balance back-calculation (30 mins of history)
+    _physics_buffer = {
+        "bzt": [],
+        "fuel": [],
+        "timestamps": []
+    }
+
+    # Persistent storage for recommendation to ensure UI stays updated 
+    # even between 30-second AI optimization cycles.
+    recommendation = {"active_strategy": "MANUAL", "driver": "MONITOR", "actions": []}
 
     while True:
         try:
@@ -293,9 +310,8 @@ def automated_control_loop():
                     socketio.sleep(FAST_CYCLE_SECONDS)
                     continue
 
-                if current_mode > 0:
-                    logger.info(f"Starting Optimization Cycle. Mode: {current_mode}")
-
+                # 1. FETCH CONFIG & DATA IMMEDIATELY
+                conf = process_model.load_model_config()
                 end_time = datetime.utcnow()
                 start_time = end_time - timedelta(minutes=30)
                 real_df = database.get_realtime_data_window(start_time, end_time, all_tags, tag_map)
@@ -304,41 +320,114 @@ def automated_control_loop():
                 is_test = getattr(config, 'TEST_MODE', False)
                 if real_df.empty and is_test and app.config.get('df_fingerprint') is not None:
                     real_df = app.config['df_fingerprint'].iloc[-30:].copy()
-                elif real_df.empty:
+
+                if real_df.empty:
                     socketio.sleep(FAST_CYCLE_SECONDS)
                     continue
 
+                # 2. PREPARE MAPPED STATE
+                raw_latest = real_df.iloc[-1].to_dict()
+                mapped_state = {tag_map.get(k, k): v for k, v in raw_latest.items()}
+
+                # HCF is calculated inside upset_manager from hcf_config in
+                # model_config.json — main.py stays clean.
+                hcf = 1.0
+
                 if not real_df.empty:
-                    recommendation = None
+                    # Slow Cycle AI Optimization
+                    # (recommendation persists from the top of the function)
 
                     # Load config for fingerprint and AI
-                    conf = process_model.load_model_config()
                     calc_cfg = conf.get('calculated_variables', {})
                     controls_cfg = conf.get('control_variables', {})
                     indicators_cfg = conf.get('indicator_variables', {})
                     deviation_config = conf.get('deviation_config', {})
-                    raw_state = real_df.iloc[-1].to_dict() # Get the latest state as a dictionary
+                    # raw_state uses raw_latest already defined above
 
-                    if current_mode == 2:  # FINGERPRINT
-                        recommendation = fingerprint_engine.get_live_fingerprint_action(real_df)
-                    elif current_mode == 1:  # AI
-                        if mbrl_manager:
-                            recommendation = mbrl_manager.get_optimal_action(real_df)
+                    trust_cfg = conf.get('trust_interlock_config', {})
+                    trust_thresholds = trust_cfg.get('thresholds', {'fingerprint': 85.0, 'ai': 80.0, 'hybrid_bias': 5.0})
+
+                    if current_mode > 0:
+                        # --- ALWAYS CALCULATE FINGERPRINT BACKGROUND SCAN ---
+                        # We do this so the similarity score (batch scan number) is always available 
+                        # as a grounding metric for trust, even when AI is driving.
+                        fp_rec = fingerprint_engine.get_live_fingerprint_action(real_df)
+                        fp_score = float(fp_rec.get('match_score', 0)) if fp_rec and isinstance(fp_rec.get('match_score'), (int, float)) else 0
+                        
+                        ai_rec = None
+                        if mbrl_manager and current_mode in (1, 3):
+                             ai_rec = mbrl_manager.get_optimal_action(real_df)
+                        
+                        ai_score = float(ai_rec.get('confidence', 0)) if ai_rec and ai_rec.get('confidence') is not None else 0
+
+                        # --- STRATEGY ARBITRATION ---
+                        if current_mode == 3:  # HYBRID
+                            # Arbitration logic (History Bias)
+                            if (fp_score + trust_thresholds.get('hybrid_bias', 5.0)) >= ai_score:
+                                recommendation = fp_rec
+                                if recommendation:
+                                    recommendation['active_strategy'] = "FINGERPRINT"
+                                    recommendation['driver'] = "HISTORY"
+                            elif ai_rec:
+                                recommendation = ai_rec
+                                if recommendation:
+                                    recommendation['active_strategy'] = "AI"
+                                    recommendation['driver'] = "AI-NN"
+                                    # ATTACH FINGERPRINT DATA FOR UI GROUNDING
+                                    if fp_rec and 'match_meta' in fp_rec:
+                                        recommendation['match_meta'] = fp_rec['match_meta']
+                            else:
+                                recommendation = fp_rec
+                                if recommendation:
+                                    recommendation['driver'] = "HISTORY"
+                        
+                        elif current_mode == 2:  # FINGERPRINT ONLY
+                            recommendation = fp_rec
+                            if recommendation:
+                                recommendation['active_strategy'] = "FINGERPRINT"
+                                recommendation['driver'] = "HISTORY"
+                        
+                        elif current_mode == 1:  # AI ONLY
+                            if ai_rec:
+                                recommendation = ai_rec
+                                if recommendation:
+                                    recommendation['active_strategy'] = "AI"
+                                    recommendation['driver'] = "AI-NN"
+                                    # ATTACH FINGERPRINT DATA FOR UI GROUNDING
+                                    if fp_rec and 'match_meta' in fp_rec:
+                                        recommendation['match_meta'] = fp_rec['match_meta']
+                            else:
+                                # Fallback to history if AI failed
+                                recommendation = fp_rec
+                                if recommendation:
+                                    recommendation['active_strategy'] = "FINGERPRINT" 
+                                    recommendation['driver'] = "HISTORY-FALLBACK"
+                        
+                        # --- ATTACH SCORES AND BROADCAST ---
+                        if recommendation:
+                            # Attach individual scores for the dual-score UI
+                            recommendation['fp_score'] = fp_score
+                            recommendation['ai_score'] = ai_score
+                            recommendation['selected_strategy'] = recommendation.get('active_strategy', 'FINGERPRINT')
+                            
+                            socketio.emit('autopilot_update', recommendation)
+                        else:
+                            logger.warning("[AUTOPILOT] No recommendation available this cycle. Skipping broadcast.")
+
                     elif current_mode == 0:  # MONITOR
                         if mbrl_manager:
                             recommendation = mbrl_manager.get_optimal_action(real_df)
+                            recommendation['active_strategy'] = "AI"
                             recommendation['match_score'] = "MONITOR"
+                            recommendation['driver'] = "MONITOR"
 
                     if current_mode > 0 and recommendation and isinstance(recommendation, dict):
                         # [LIVE SETPOINT SYNC] Inject calculated actions (Priority 0)
-                        conf = process_model.load_model_config()
                         calc_cfg = conf.get('calculated_variables', {})
                         controls_cfg = conf.get('control_variables', {})
                         indicators_cfg = conf.get('indicator_variables', {})
                         
                         raw_actions = recommendation.get('actions', [])
-                        tag_map = process_model.get_tag_to_name_map()
-                        mapped_state = {tag_map.get(k, k): v for k, v in real_df.iloc[-1].to_dict().items()}
                         
                         calc_actions = process_model.generate_calculated_actions(
                             raw_actions, mapped_state, controls_cfg, indicators_cfg, calc_cfg
@@ -353,11 +442,159 @@ def automated_control_loop():
                         if score == "SAFETY-CLAMP":
                             logger.warning("[SEC] Guardian Blocked Control")
                         else:
+                            # -------------------------------------------------------
+                            # [UPSET OVERRIDE] Evaluate upset conditions.
+                            # The recommendation (charts, score, UI) is ALWAYS kept
+                            # intact. Only the setpoints written to InfluxDB may be
+                            # overridden when a timed upset condition fires.
+                            # If upset_manager fails for any reason it returns []
+                            # and the standard pipeline continues unaffected.
+                            # -------------------------------------------------------
+                            try:
+                                from modules.upset_manager import evaluate_upsets
+                                upset_actions = evaluate_upsets(mapped_state, conf, recent_df=real_df)
+                            except Exception as _ue:
+                                logger.warning(f"[UpsetManager] Import/eval error (pipeline continues): {_ue}")
+                                upset_actions = []
+
+                            # Build the setpoints dict for InfluxDB write
+                            # If upset actions exist, they replace individual targets
                             setpoints = {}
-                            for action in recommendation.get('actions', []):
-                                val = action.get('fingerprint_set_point')
-                                if val is not None:
-                                    setpoints[action['var_name']] = val
+                            if upset_actions:
+                                logger.warning(
+                                    f"[UPSET-OVERRIDE] {len(upset_actions)} action(s) active - "
+                                    f"overriding AI/Fingerprint setpoints for affected variables."
+                                )
+                                # Build map: target -> overridden value
+                                for act in upset_actions:
+                                    target = act.get("target")
+                                    if not target or act.get("type") in ("system_halt", "mode_switch"):
+                                        continue
+                                    curr = mapped_state.get(target, 0.0) or 0.0
+                                    adj  = act.get("step_adjustment", 0.0)
+                                    if act.get("is_percentage"):
+                                        new_val = curr * (1.0 + adj / 100.0)
+                                    else:
+                                        new_val = curr + adj
+                                    setpoints[target] = new_val
+
+                                # Any variables NOT overridden by upset use AI recommendation
+                                for action in recommendation.get('actions', []):
+                                    vn = action.get('var_name')
+                                    if vn and vn not in setpoints:
+                                        val = action.get('fingerprint_set_point')
+                                        if val is not None:
+                                            setpoints[vn] = val
+
+                                # ---------------------------------------------------
+                                # FINALIZE setpoints dictionary
+                                # ---------------------------------------------------
+                                recommendation['upset_summary']  = [
+                                    f"{a.get('rule_id','?')}: {a.get('description', a.get('cascade_tier',''))}"
+                                    for a in upset_actions
+                                ]
+                            else:
+                                # Normal path — no upsets active
+                                recommendation['upset_active'] = False
+                                for action in recommendation.get('actions', []):
+                                    val = action.get('fingerprint_set_point')
+                                    if val is not None:
+                                        setpoints[action['var_name']] = val
+
+                            # --- UI SYNCHRONIZATION ---
+                            # Rebuild recommendation['actions'] so the dashboard always 
+                            # reflects exactly what is being written to InfluxDB.
+                            new_ui_actions = []
+                            upset_targets = {a.get('target') for a in upset_actions if a.get('target')}
+                            
+                            for vn, val in setpoints.items():
+                                # Skip backend metadata bits to keep the table clean
+                                if vn in ('AI_SYSTEM_TRUST', 'AI_SYSTEM_TRUST_STATUS', 'AI_CONTROL_SIGNAL'):
+                                    continue
+                                
+                                # Find original action to preserve metadata/reasoning if possible
+                                orig = next((a for a in recommendation.get('actions', []) if a['var_name'] == vn), None)
+                                curr = float(mapped_state.get(vn, 0.0) or 0.0)
+                                
+                                new_ui_actions.append({
+                                    "var_name": vn,
+                                    "current_setpoint": curr,
+                                    "fingerprint_set_point": round(val, 4),
+                                    "final_target": round(val, 4),
+                                    "diff": round(val - curr, 4),
+                                    "reason": 'Upset Override' if vn in upset_targets else (orig.get('reason', 'Optimizing') if orig else 'Optimizing'),
+                                    "type": "Control"
+                                })
+                            
+                            recommendation['actions'] = new_ui_actions
+
+                            # --- SYSTEM TRUST CALCULATION ---
+                            if trust_cfg.get('enabled', True):
+                                trust_bit = 0
+                                strategy = recommendation.get('active_strategy', 'BALANCED')
+                                
+                                # 1. Upset override (highest priority)
+                                if recommendation.get('upset_active'):
+                                    trust_bit = trust_cfg.get('behavior', {}).get('upset_trust', 1)
+                                
+                                # 2. Mode-aware logic (Toggle logic)
+                                else:
+                                    # Extract scores safely (Use match_score directly for the most reliable trust check)
+                                    try:
+                                        fp_score = float(recommendation.get('match_score', 0))
+                                    except (ValueError, TypeError):
+                                        fp_score = 0.0
+                                        
+                                    nn_score = float(recommendation.get('confidence', 0))
+                                    
+                                    fp_limit = trust_thresholds.get('fingerprint', 85.0)
+                                    ai_limit = trust_thresholds.get('ai', 80.0)
+
+                                    if strategy == "FINGERPRINT":
+                                        if fp_score >= fp_limit: trust_bit = 1
+                                    elif strategy == "AI":
+                                        if nn_score >= ai_limit: trust_bit = 1
+                                    elif strategy == "HYBRID":
+                                        # Trust if EITHER the Fingerprint match OR AI confidence is high
+                                        if fp_score >= fp_limit or nn_score >= ai_limit:
+                                            trust_bit = 1
+                                
+                                setpoints['AI_SYSTEM_TRUST'] = trust_bit
+                                recommendation['system_trust'] = trust_bit
+
+                            # --- PROCESS INSIGHT GENERATION ---
+                            insights = []
+                            opt_cfg = conf.get('optimisation_target', {})
+                            if opt_cfg:
+                                target_tag = opt_cfg.get('primary_tag', 'None')
+                                t_min, t_max = opt_cfg.get('primary_min', 0), opt_cfg.get('primary_max', 0)
+                                insights.append({"type": "goal", "text": f"TARGET: {target_tag} ({t_min}-{t_max})"})
+                            
+                            driver = recommendation.get('driver', 'None')
+                            strat_name = recommendation.get('active_strategy', 'BALANCED')
+                            strategies_cfg = conf.get('strategies', {})
+                            active_strat_cfg = strategies_cfg.get(strat_name, {})
+                            strat_desc = active_strat_cfg.get('description', f"Mode: {strat_name}")
+                            insights.append({"type": "strategy", "text": f"STRATEGY: {strat_desc}"})
+
+                            if strat_name == "FINGERPRINT":
+                                val = round(float(recommendation.get('match_score', 0)), 1)
+                                insights.append({"type": "logic", "text": f"BATCH SIMILARITY: {val}%"})
+                            elif strat_name == "AI":
+                                val = recommendation.get('confidence', 0)
+                                insights.append({"type": "logic", "text": f"LOGIC: AI-NN Strategy (Conf: {val}%)"})
+                            
+                            if recommendation.get('upset_active'):
+                                for summ in recommendation.get('upset_summary', []):
+                                    insights.append({"type": "safety", "text": f"UPSET: {summ}"})
+                            
+                            if recommendation.get('match_score') == "SAFETY-CLAMP":
+                                insights.append({"type": "safety", "text": "SAFETY: Guardian Clamp Active"})
+                            
+                            if recommendation.get('hcf') and abs(float(recommendation['hcf']) - 1.0) > 0.001:
+                                insights.append({"type": "hcf", "text": f"HCF: {float(recommendation['hcf']):.3f} Thermal Adjust"})
+
+                            recommendation['insights'] = insights
 
                             if setpoints:
                                 setpoint_map = process_model.get_setpoint_tag_map()

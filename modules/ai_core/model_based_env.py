@@ -14,7 +14,7 @@ class PessimisticVirtualEnv:
     It allows the SAC Agent to learn 'Offline' without touching the real plant.
     """
 
-    def __init__(self, world_model, history_df, env_params, history_window=5):
+    def __init__(self, world_model, history_df, env_params, history_window=5, strategy_name="BALANCED"):
         self.wm = world_model
         self.df = history_df
         self.hw = history_window
@@ -30,11 +30,14 @@ class PessimisticVirtualEnv:
         # --- REFACTORED: Load Optimization Goals from Config ---
         config = process_model.load_model_config()
         self.opt_settings = config.get('optimization_settings', {})
-
-        # Load specific goals
-        self.weights = self.opt_settings.get('weights', {})
-        self.target_setpoint = self.opt_settings.get('target_setpoint', 1450.0)
-        self.deviation_penalty = self.opt_settings.get('deviation_penalty', 0.1)
+        
+        # New: Pull from strategy first
+        self.strategy_cfg = config.get('strategies', {}).get(strategy_name, {})
+        
+        # Load specific goals (Strategy weights take precedence over global weights)
+        self.weights = self.strategy_cfg.get('weights', self.opt_settings.get('weights', {}))
+        self.target_setpoint = self.strategy_cfg.get('target_setpoint', self.opt_settings.get('target_setpoint', 1450.0))
+        self.deviation_penalty = self.strategy_cfg.get('deviation_penalty', self.opt_settings.get('deviation_penalty', 0.1))
 
         # Identify Target Variable
         bindings = config.get('ai_bindings', {})

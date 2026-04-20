@@ -93,10 +93,14 @@ def get_tag_to_name_map():
     """Maps DB Column Names -> Human Friendly Names"""
     conf = load_model_config()
     mapping = {}
-    for name, data in conf.get('control_variables', {}).items():
-        if 'tag_name' in data: mapping[data['tag_name']] = name
-    for name, data in conf.get('indicator_variables', {}).items():
-        if 'tag_name' in data: mapping[data['tag_name']] = name
+    
+    sections = ['control_variables', 'indicator_variables', 'calculated_variables']
+    for section in sections:
+        for name, data in conf.get(section, {}).items():
+            # If tag_name is present, use it. Otherwise, default to the key name.
+            tag = data.get('tag_name', name)
+            mapping[tag] = name
+            
     return mapping
 
 def get_name_to_tag_map():
@@ -226,10 +230,11 @@ def get_optimization_weights():
 # 4. FORMULA ENGINE (INTEGRATED)
 # ==============================================================================
 def preprocess_formula(formula, sorted_variable_names):
-    """Wraps variable names containing spaces in backticks for Pandas eval()."""
+    """Wraps variable names containing spaces or operators in backticks for Pandas eval()."""
     processed = formula
     for v in sorted_variable_names:
-        if ' ' in v:
+        # Wrap if name contains spaces or common math operators that would break eval()
+        if any(c in v for c in ' /-()+*%'):
             pattern = r'(?<!`)\b' + re.escape(v) + r'\b(?!`)'
             processed = re.sub(pattern, f"`{v}`", processed)
     return processed
@@ -284,9 +289,9 @@ def generate_calculated_actions(raw_actions, state_map, controls_cfg, indicators
     calculated_targets = evaluate_formulas(target_context, controls_cfg, indicators_cfg, calc_vars_cfg)
     calculated_currents = evaluate_formulas(state_map, controls_cfg, indicators_cfg, calc_vars_cfg)
     new_actions = []
-    for _, cfg in calc_vars_cfg.items():
+    for k, cfg in calc_vars_cfg.items():
         if cfg.get('is_control'):
-            name = cfg.get('friendly_name')
+            name = cfg.get('friendly_name', k)
             curr_val = calculated_currents.get(name, 0.0)
             target_val = calculated_targets.get(name, 0.0)
             def_min, def_max = cfg.get('default_min', -9999), cfg.get('default_max', 9999)
@@ -300,18 +305,36 @@ def generate_calculated_actions(raw_actions, state_map, controls_cfg, indicators
     return new_actions
 
 def get_setpoint_tag_map():
-    """Maps Friendly Name -> PLC Write Tag"""
+    """Maps Friendly Name -> PLC Write Tag (Includes Calculated Setpoints)"""
     conf = load_model_config()
     mapping = {}
+    
+    # Standard Controls
     for name, data in conf.get('control_variables', {}).items():
         if data.get('is_setpoint'):
             mapping[name] = data.get('tag_name', name)
+            
+    # Calculated Controls
+    for name, data in conf.get('calculated_variables', {}).items():
+        if data.get('is_setpoint'):
+            # Default to friendly_name or key name if tag_name is missing
+            mapping[name] = data.get('tag_name', data.get('friendly_name', name))
+            
     return mapping
 
 def get_setpoint_scale_factors():
-    """Returns scaling factors if tags require multiplication/division."""
+    """Returns scaling factors for all setpoint types."""
     conf = load_model_config()
     factors = {}
+    
+    # Standard Controls
     for name, data in conf.get('control_variables', {}).items():
-        factors[name] = data.get('scale_factor', 1.0)
+        if 'scale_factor' in data or 'scale' in data:
+            factors[name] = data.get('scale_factor', data.get('scale', 1.0))
+            
+    # Calculated Controls
+    for name, data in conf.get('calculated_variables', {}).items():
+        if 'scale_factor' in data or 'scale' in data:
+            factors[name] = data.get('scale_factor', data.get('scale', 1.0))
+            
     return factors
