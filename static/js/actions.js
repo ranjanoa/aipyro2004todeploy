@@ -22,6 +22,7 @@ import { toggleOpTrend} from "./optSum/toggleOpTrend.js"
 import {toggleConfigView} from "./actions/toggleConfigView.js"
 import {initSoftSensorSim} from "./InitFunctions/initSoftSensorSim.js"
 import { saveTableConfig} from "./actions/saveTableConfig.js"
+import { toggleConfigSection } from "./actions/toggleConfigSection.js";
 
 import { clearOpTrendsKiln} from "./optSum/optSumkiln/clearOpTrendsKiln.js"
 import { toggleOpDashChartKiln} from "./optSum/optSumkiln/toggleOpDashChartKiln.js"
@@ -59,6 +60,7 @@ window.Actions = {
     toggleConfigView,
     initSoftSensorSim,
     saveTableConfig,
+    toggleConfigSection,
 
 
       clearOpTrendsKiln,

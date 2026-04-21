@@ -101,4 +101,42 @@ export function populateConfigUI(cfg) {
                     indBody.innerHTML += renderRow(key, cfg.indicator_variables[key], false);
                 });
             }
+
+            // Populate Simulator Settings
+            const simColorSel = document.getElementById('config-sim-default-color');
+            if (simColorSel) {
+                simColorSel.innerHTML = '';
+                const allVars = [...Object.keys(cfg.control_variables || {}), ...Object.keys(cfg.indicator_variables || {})].sort();
+                allVars.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.text = v;
+                    if (cfg.simulator_settings && v === cfg.simulator_settings.default_color_by) opt.selected = true;
+                    simColorSel.appendChild(opt);
+                });
+            }
+
+            // Populate Upset Scenarios
+            const upsetBody = document.getElementById('config-upsets-body');
+            if (upsetBody && cfg.upset_conditions) {
+                upsetBody.innerHTML = '';
+                Object.keys(cfg.upset_conditions).sort().forEach(key => {
+                    const u = cfg.upset_conditions[key];
+                    const isEnabled = u.enabled ? 'checked' : '';
+                    upsetBody.innerHTML += `
+                        <tr class="hover:bg-white/5 transition-colors group">
+                            <td class="text-gray-400 border-gray-200 px-4 py-2 font-mono text-[10px]">${key}</td>
+                            <td class="text-white border-gray-200 px-4 py-2 font-bold">${u.description || 'No description'}</td>
+                            <td class="text-gray-500 border-gray-200 px-2 py-2 text-center uppercase text-[10px]">${u.group || 'N/A'}</td>
+                            <td class="text-white border-gray-200 px-2 py-2 text-center">
+                                <input type="number" data-tag="${key}" data-field="priority" value="${u.priority ?? 5}" 
+                                    class="w-12 bg-black/30 border border-white/10 rounded px-1 py-1 text-center text-orange-400 font-bold">
+                            </td>
+                            <td class="text-white border-gray-200 px-4 py-2 text-center">
+                                <input type="checkbox" data-tag="${key}" data-field="enabled" ${isEnabled} 
+                                    class="w-4 h-4 accent-[#ebf552]">
+                            </td>
+                        </tr>`;
+                });
+            }
 }

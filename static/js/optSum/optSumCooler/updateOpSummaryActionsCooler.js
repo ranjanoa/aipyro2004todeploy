@@ -84,18 +84,20 @@ export function updateOpSummaryActionsCooler(data) {
                     // 2. Final 100% target from AI
                     const finalTarget = parseFloat(act.fingerprint_set_point || 0);
 
-                    // 3. Retrieve Nudge limit (force positive fallback)
-                    const varConf = state.currentModelConfig.control_variables[act.var_name] || {};
-                    const maxNudge = Math.abs(parseFloat(varConf.nudge_speed)) || 0.05;
+                    // 3. Industrial Nudge Calculation (Gain + Span-Floor)
+                    const varConf = state.currentModelConfig.control_variables[act.var_name];
+                    const gain = varConf ? (Math.abs(parseFloat(varConf.nudge_speed)) || 0.15) : 1.0;
+                    const defMax = varConf ? parseFloat(varConf.default_max || 9999) : 9999;
+                    const defMin = varConf ? parseFloat(varConf.default_min || -9999) : -9999;
+                    const span = Math.abs(defMax - defMin);
+                    const minPush = span < 10000 ? (span * 0.05) : 0.1;
 
-                    // 4. STRICTLY BOUND the nudge to be between liveCurr and finalTarget
-                    let nudgedTarget = liveCurr;
-                    if (finalTarget > liveCurr) {
-                        // Moving UP: add nudge, but do not exceed final target
-                        nudgedTarget = Math.min(liveCurr + maxNudge, finalTarget);
-                    } else if (finalTarget < liveCurr) {
-                        // Moving DOWN: subtract nudge, but do not drop below final target
-                        nudgedTarget = Math.max(liveCurr - maxNudge, finalTarget);
+                    const gap = finalTarget - liveCurr;
+                    let nudgedTarget = finalTarget;
+
+                    if (Math.abs(gap) > 0.001) {
+                        const moveRequest = Math.max(Math.abs(gap * gain), minPush);
+                        nudgedTarget = liveCurr + Math.sign(gap) * Math.min(moveRequest, Math.abs(gap));
                     }
 
                     // 5. Draw Arrows based strictly on the diff

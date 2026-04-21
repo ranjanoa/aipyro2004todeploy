@@ -1496,3 +1496,549 @@ Rejected at tag: RDF 1 (PC)
 Current RT value: 4.9933
 Target range: [4.4939 to 5.4926]
 Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T08:22:00.001762 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 1.9989
+Target range: [1.7990 to 2.1988]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T08:22:32.437719 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.9990
+Target range: [2.6991 to 3.2990]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T08:31:52.469425 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.9963
+Target range: [2.6967 to 3.2960]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T08:34:01.973690 ---
+Phase: Standard
+Rejected at tag: RDF 2 (PC)
+Current RT value: 9.0042
+Target range: [8.1038 to 9.9046]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:16:07.960436 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.9897
+Target range: [2.6908 to 3.2887]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:18:19.986113 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 3.0076
+Target range: [2.7068 to 3.3084]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:20:31.808552 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 3.0017
+Target range: [2.7015 to 3.3019]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:22:43.847491 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 3.0140
+Target range: [2.7126 to 3.3154]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:29:55.263522 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 3.0026
+Target range: [2.7023 to 3.3029]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:32:06.924808 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.9955
+Target range: [2.6959 to 3.2950]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:43:16.142309 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 3.0009
+Target range: [2.7008 to 3.3010]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:45:27.565506 ---
+Phase: Standard
+Rejected at tag: RDF (Kiln)
+Current RT value: 3.2571
+Target range: [2.9314 to 3.5828]
+Config Limits: [0.0 to 5.0]
+
+--- 2026-04-21T09:47:40.143807 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 3.0107
+Target range: [2.7096 to 3.3118]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:49:51.955041 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 3.0027
+Target range: [2.7024 to 3.3030]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:52:03.726051 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.0078
+Target range: [3.6070 to 4.4086]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:54:59.109457 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 1.9956
+Target range: [1.7960 to 2.1952]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:57:11.014101 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.0101
+Target range: [1.8091 to 2.2111]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T09:59:22.960436 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 1.9981
+Target range: [1.7983 to 2.1979]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:01:33.842232 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.0001
+Target range: [1.8001 to 2.2001]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:03:44.264371 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 1.9975
+Target range: [1.7978 to 2.1973]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:05:54.795492 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 1.9957
+Target range: [1.7962 to 2.1953]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:08:05.124946 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 1.9995
+Target range: [1.7995 to 2.1994]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:10:16.462439 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.9732
+Target range: [2.6759 to 3.2706]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:12:28.284387 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.9953
+Target range: [2.6957 to 3.2948]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:14:40.838794 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 3.4888
+Target range: [3.1400 to 3.8377]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:16:52.453651 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 3.9996
+Target range: [3.5997 to 4.3996]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:19:04.474829 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.0155
+Target range: [3.6140 to 4.4171]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:21:17.583363 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.0068
+Target range: [3.6061 to 4.4075]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:25:41.990880 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9984
+Target range: [4.4986 to 5.4983]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:30:25.347503 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0018
+Target range: [4.5016 to 5.5019]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:32:37.852052 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9965
+Target range: [4.4969 to 5.4962]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:34:51.569380 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0125
+Target range: [4.5112 to 5.5137]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:37:05.495556 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0096
+Target range: [4.5087 to 5.5106]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:39:19.388694 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9759
+Target range: [4.4783 to 5.4734]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:41:30.873061 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0059
+Target range: [4.5053 to 5.5065]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:43:42.638674 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0192
+Target range: [4.5173 to 5.5211]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:55:14.817967 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0047
+Target range: [4.5042 to 5.5052]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:57:27.207133 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9997
+Target range: [4.4997 to 5.4996]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T10:59:42.131303 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0169
+Target range: [4.5152 to 5.5186]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:06:09.387799 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9922
+Target range: [4.4930 to 5.4915]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:08:19.897712 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0083
+Target range: [4.5075 to 5.5091]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:10:31.507382 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0061
+Target range: [4.5055 to 5.5067]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:12:42.775980 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9852
+Target range: [4.4867 to 5.4837]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:14:54.397427 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9868
+Target range: [4.4881 to 5.4855]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:17:06.697263 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0186
+Target range: [4.5168 to 5.5205]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:19:19.089314 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9908
+Target range: [4.4917 to 5.4899]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:21:31.068072 ---
+Phase: Standard
+Rejected at tag: Petcoke (Kiln)
+Current RT value: 7.2994
+Target range: [6.5694 to 5.0000]
+Config Limits: [0.0 to 5.0]
+
+--- 2026-04-21T11:21:31.120292 ---
+Phase: Steering (Relaxed)
+Rejected at tag: RDF (Kiln)
+Current RT value: 0.0000
+Target range: [0.0000 to 0.0000]
+Config Limits: [0.0 to 5.0]
+
+--- 2026-04-21T11:23:46.065543 ---
+Phase: Standard
+Rejected at tag: Petcoke (Kiln)
+Current RT value: 6.2684
+Target range: [5.6416 to 5.0000]
+Config Limits: [0.0 to 5.0]
+
+--- 2026-04-21T11:23:46.073807 ---
+Phase: Steering (Relaxed)
+Rejected at tag: RDF (Kiln)
+Current RT value: 0.0000
+Target range: [0.0000 to 0.0000]
+Config Limits: [0.0 to 5.0]
+
+--- 2026-04-21T11:25:59.835947 ---
+Phase: Standard
+Rejected at tag: Petcoke (Kiln)
+Current RT value: 6.4912
+Target range: [5.8421 to 5.0000]
+Config Limits: [0.0 to 5.0]
+
+--- 2026-04-21T11:25:59.844558 ---
+Phase: Steering (Relaxed)
+Rejected at tag: RDF (Kiln)
+Current RT value: 0.0000
+Target range: [0.0000 to 0.0000]
+Config Limits: [0.0 to 5.0]
+
+--- 2026-04-21T11:48:59.026817 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0070
+Target range: [4.5063 to 5.5077]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:50:28.734279 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9929
+Target range: [4.4936 to 5.4922]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:51:56.952322 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0304
+Target range: [4.5274 to 5.5335]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:54:09.117234 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0026
+Target range: [4.5024 to 5.5029]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:56:23.502374 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0021
+Target range: [4.5019 to 5.5023]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:58:35.414469 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0129
+Target range: [4.5117 to 5.5142]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T11:59:34.086203 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0051
+Target range: [4.5046 to 5.5056]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:00:59.854651 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9885
+Target range: [4.4896 to 5.4873]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:03:02.264434 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0054
+Target range: [4.5048 to 5.5059]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:05:11.542514 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0116
+Target range: [4.5105 to 5.5128]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:07:20.226274 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9980
+Target range: [4.4982 to 5.4979]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:08:26.110709 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9905
+Target range: [4.4915 to 5.4896]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:10:38.266148 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9911
+Target range: [4.4920 to 5.4902]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:12:50.593388 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0042
+Target range: [4.5038 to 5.5046]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:15:03.441988 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9965
+Target range: [4.4968 to 5.4961]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:17:14.778667 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 4.9905
+Target range: [4.4915 to 5.4896]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:19:25.349899 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 5.0075
+Target range: [4.5067 to 5.5082]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:33:15.857539 ---
+Phase: Standard
+Rejected at tag: RDF 2 (PC)
+Current RT value: 4.9961
+Target range: [4.4965 to 5.4957]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:35:25.991242 ---
+Phase: Standard
+Rejected at tag: Petcoke (Kiln)
+Current RT value: 7.3900
+Target range: [6.6510 to 5.0000]
+Config Limits: [0.0 to 5.0]
+
+--- 2026-04-21T12:35:26.000086 ---
+Phase: Steering (Relaxed)
+Rejected at tag: RDF (Kiln)
+Current RT value: 0.0000
+Target range: [0.0000 to 0.0000]
+Config Limits: [0.0 to 5.0]
+
+--- 2026-04-21T12:37:48.314238 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.9982
+Target range: [2.6984 to 3.2981]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:40:00.036001 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.9888
+Target range: [2.6899 to 3.2877]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:42:12.121766 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.9854
+Target range: [2.6868 to 3.2839]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:44:56.164100 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.9868
+Target range: [2.6881 to 3.2854]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:47:09.424469 ---
+Phase: Standard
+Rejected at tag: RDF 1 (PC)
+Current RT value: 2.9991
+Target range: [2.6992 to 3.2990]
+Config Limits: [0.0 to 10.0]
+
+--- 2026-04-21T12:49:23.750211 ---
+Phase: Standard
+Rejected at tag: RDF 2 (PC)
+Current RT value: 8.9931
+Target range: [8.0938 to 9.8924]
+Config Limits: [0.0 to 10.0]

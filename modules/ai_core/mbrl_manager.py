@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 import config
 import process_model
+from process_model import apply_industrial_nudge
 
 # --- REAL AI MODULE IMPORTS ---
 try:
@@ -453,16 +454,21 @@ def get_optimal_action(current_real_df):
         def_max = controls_cfg.get(tag, {}).get('default_max', 9999)
         ultimate_goal = max(def_min, min(def_max, ultimate_goal))
 
-        # Nudge Calculation (Absolute Step to match UI/Fingerprint logic)
-        max_step = abs(float(controls_cfg.get(tag, {}).get('nudge_speed', 0.05)))
-        delta = ultimate_goal - current_val
-
-        if abs(delta) > max_step:
-            nudged_val = current_val + (np.sign(delta) * max_step)
-            reason = f"Ramping (Step @ {max_step} units)"
+        # Industrial Nudge Calculation (Centralized utility)
+        # ONLY apply nudge if variable is in the Control section. Otherwise, 100% Jump.
+        if tag in controls_cfg:
+            gain = abs(float(controls_cfg[tag].get('nudge_speed', 0.15)))
         else:
-            nudged_val = ultimate_goal
+            gain = 1.0 # Indicators/Misc are NOT dampened
+        
+        nudged_val = apply_industrial_nudge(
+            current_val, ultimate_goal, gain, def_min, def_max
+        )
+
+        if abs(nudged_val - ultimate_goal) < 0.001:
             reason = "Fine Tuning"
+        else:
+            reason = "Ramping Nudge"
 
         # Final safety check before JSON serialization
         if np.isnan(nudged_val) or np.isinf(nudged_val): nudged_val = 0.0

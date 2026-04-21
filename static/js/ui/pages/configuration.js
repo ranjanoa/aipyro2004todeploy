@@ -119,8 +119,9 @@ export function Configuration() {
                 <div class="glass-panel overflow-hidden border-gray-200 border border-white/5">
                     <div class="p-3 bg-white/5 border-b border-gray-200 border-white/10 flex justify-between items-center">
                         <h4 class="text-xs font-black text-white uppercase tracking-tighter">Active Optimization Strategy</h4>
+                        <button id="toggle-strategy-btn" onclick="Actions.toggleConfigSection('config-strategy-content', 'toggle-strategy-btn')" class="text-white hover:text-yellow-400 font-bold transition-colors">▼</button>
                     </div>
-                    <div class="p-4 bg-[#0e2229]/50">
+                    <div id="config-strategy-content" class="hidden p-4 bg-[#0e2229]/50">
                         <div class="flex items-center gap-4">
                             <div class="flex-1">
                                 <label class="text-[10px] font-bold text-white uppercase block mb-1">Select Strategy</label>
@@ -133,8 +134,9 @@ export function Configuration() {
                 <div class="glass-panel overflow-hidden border-gray-200 border border-white/5">
                     <div class="p-3 bg-white/5 border-b border-gray-200 border-white/10 flex justify-between items-center">
                         <h4 class="text-xs font-black text-white uppercase tracking-tighter">Control Variables (MVs)</h4>
+                        <button id="toggle-controls-btn" onclick="Actions.toggleConfigSection('config-controls-content', 'toggle-controls-btn')" class="text-white hover:text-yellow-400 font-bold transition-colors">▼</button>
                     </div>
-                    <div class="overflow-x-auto">
+                    <div id="config-controls-content" class="hidden overflow-x-auto">
                         <table class="w-full text-left text-[11px]">
                             <thead>
                                 <tr class="bg-[#122a33] text-gray-400 uppercase font-black border-gray-200 border-b border-[#476570]">
@@ -156,8 +158,9 @@ export function Configuration() {
                 <div class="glass-panel overflow-hidden border border-gray-200 border-white/5">
                     <div class="p-3 bg-white/5 border-b border-gray-200 border-white/10 flex justify-between items-center">
                         <h4 class="text-xs font-black text-white uppercase tracking-tighter">Indicator Variables (Signal Filtering)</h4>
+                        <button id="toggle-indicators-btn" onclick="Actions.toggleConfigSection('config-indicators-content', 'toggle-indicators-btn')" class="text-white hover:text-yellow-400 font-bold transition-colors">▼</button>
                     </div>
-                    <div class="overflow-x-auto">
+                    <div id="config-indicators-content" class="hidden overflow-x-auto">
                         <table class="w-full text-left text-[11px]">
                             <thead>
                                 <tr class="bg-[#122a33] text-gray-400 uppercase font-black border-b border-gray-200 border-[#476570]">
@@ -172,6 +175,42 @@ export function Configuration() {
                             </thead>
                             <tbody id="config-indicators-body" class="divide-y divide-white/5"></tbody>
                         </table>
+                    </div>
+                </div>
+
+                <div class="glass-panel overflow-hidden border border-gray-200 border-white/5">
+                    <div class="p-3 bg-white/5 border-b border-gray-200 border-white/10 flex justify-between items-center">
+                        <h4 class="text-xs font-black text-white uppercase tracking-tighter text-orange-400">Upset Scenarios (Safety Overrides)</h4>
+                        <button id="toggle-upsets-btn" onclick="Actions.toggleConfigSection('config-upsets-content', 'toggle-upsets-btn')" class="text-white hover:text-yellow-400 font-bold transition-colors">▼</button>
+                    </div>
+                    <div id="config-upsets-content" class="hidden overflow-x-auto">
+                        <table class="w-full text-left text-[11px]">
+                            <thead>
+                                <tr class="bg-[#122a33] text-gray-400 uppercase font-black border-b border-gray-200 border-[#476570]">
+                                    <th class="px-4 text-white py-3">Scenario ID</th>
+                                    <th class="px-4 text-white py-3">Description</th>
+                                    <th class="px-2 text-white py-3 text-center">Group</th>
+                                    <th class="px-2 text-white py-3 text-center">Priority</th>
+                                    <th class="px-4 text-white py-3 text-center">Enabled</th>
+                                </tr>
+                            </thead>
+                            <tbody id="config-upsets-body" class="divide-y divide-white/5"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="glass-panel overflow-hidden border border-gray-200 border-white/5">
+                    <div class="p-3 bg-white/5 border-b border-gray-200 border-white/10 flex justify-between items-center">
+                        <h4 class="text-xs font-black text-white uppercase tracking-tighter text-blue-400">Simulator Settings</h4>
+                        <button id="toggle-simulator-btn" onclick="Actions.toggleConfigSection('config-simulator-content', 'toggle-simulator-btn')" class="text-white hover:text-yellow-400 font-bold transition-colors">▼</button>
+                    </div>
+                    <div id="config-simulator-content" class="hidden p-4 bg-[#0e2229]/50">
+                        <div class="flex items-center gap-4">
+                            <div class="flex-1">
+                                <label class="text-[10px] font-bold text-white uppercase block mb-1">Default "Color By" Variable</label>
+                                <select id="config-sim-default-color" class="w-full border border-gray-300 rounded px-3 py-1.5 outline-none w-80 font-bold text-sm text-select-white"></select>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 

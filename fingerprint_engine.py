@@ -4,6 +4,8 @@ import logging
 import os
 import json
 from datetime import datetime, timedelta
+import process_model
+from process_model import apply_industrial_nudge
 
 # ADVANCED MATH IMPORTS
 try:
@@ -1138,6 +1140,7 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
     # Consistently initialize to 0.0 at the entry point
     sim_pct = 0.0
     match_meta = {}
+    reason = "Initial Search"
     try:
         raw_state = current_real_df_window.iloc[-1].to_dict()
         now = pd.Timestamp.now()
@@ -1363,19 +1366,18 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
             curr = float(current_state.get(tag, 0))
             tgt = align_magnitude(float(target_vals.get(tag, curr)), curr)
 
-            # Calculation logic to match the frontend JS EXACTLY (Absolute Step)
-            gap = tgt - curr
-            max_step = abs(float(cfg_var.get('nudge_speed', step_fraction)))
+            # Industrial Nudge Calculation (Centralized utility)
+            gain = abs(float(cfg_var.get('nudge_speed', step_fraction))) # Treated as gain (0.0-1.0)
+            def_min, def_max = cfg_var.get('default_min', -9999), cfg_var.get('default_max', 9999)
             
-            if abs(gap) > 0.001 and max_step > 0:
-                if gap > 0:
-                    nudged_target = min(curr + max_step, tgt)
-                else:
-                    nudged_target = max(curr - max_step, tgt)
-                reason_final = f"{reason} (Step @ {max_step} units)"
-            else:
-                nudged_target = tgt
+            nudged_target = process_model.apply_industrial_nudge(
+                curr, tgt, gain, def_min, def_max
+            )
+            
+            if abs(nudged_target - tgt) < 0.001:
                 reason_final = f"{reason} (Synced)"
+            else:
+                reason_final = f"{reason} (Nudge Applied)"
 
             ui_actions.append({
                 "var_name": tag,

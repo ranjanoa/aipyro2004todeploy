@@ -116,13 +116,18 @@ export function updateHybridDashboard(data) {
                             : parseFloat(act.current_setpoint || 0);
                     
                     const finalTarget = parseFloat(act.fingerprint_set_point || 0);
-                    const varConfSpeed = varConf ? (Math.abs(parseFloat(varConf.nudge_speed)) || 0.05) : 0.05;
-
-                    let nudgeTarget = liveCurr;
-                    if (finalTarget > liveCurr) {
-                        nudgeTarget = Math.min(liveCurr + varConfSpeed, finalTarget);
-                    } else if (finalTarget < liveCurr) {
-                        nudgeTarget = Math.max(liveCurr - varConfSpeed, finalTarget);
+                    const gain = varConf ? (Math.abs(parseFloat(varConf.nudge_speed)) || 0.15) : 1.0;
+                    const defMax = varConf ? parseFloat(varConf.default_max || 9999) : 9999;
+                    const defMin = varConf ? parseFloat(varConf.default_min || -9999) : -9999;
+                    const span = Math.abs(defMax - defMin);
+                    const minPush = span < 10000 ? (span * 0.05) : 0.1;
+                    
+                    const gap = finalTarget - liveCurr;
+                    let nudgeTarget = finalTarget;
+                    
+                    if (Math.abs(gap) > 0.001) {
+                        const moveRequest = Math.max(Math.abs(gap * gain), minPush);
+                        nudgeTarget = liveCurr + Math.sign(gap) * Math.min(moveRequest, Math.abs(gap));
                     }
 
                     const diff = finalTarget - liveCurr;

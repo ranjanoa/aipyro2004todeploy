@@ -47,6 +47,11 @@ export async function saveTableConfig() {
             // Save Active Strategy
             cfg.active_strategy = document.getElementById('config-active-strategy').value;
 
+            // Harvest Simulator Settings
+            const simColorVar = document.getElementById('config-sim-default-color').value;
+            if (!cfg.simulator_settings) cfg.simulator_settings = {};
+            cfg.simulator_settings.default_color_by = simColorVar;
+
             // Harvest values from both tables
             document.querySelectorAll('#config-controls-body input, #config-indicators-body input').forEach(input => {
                 const tag = input.getAttribute('data-tag'); 
@@ -61,6 +66,19 @@ export async function saveTableConfig() {
                         targetObj[field] = input.checked;
                     } else {
                         targetObj[field] = parseFloat(input.value);
+                    }
+                }
+            });
+
+            // Harvest Upset Scenarios
+            document.querySelectorAll('#config-upsets-body input').forEach(input => {
+                const tag = input.getAttribute('data-tag');
+                const field = input.getAttribute('data-field');
+                if (cfg.upset_conditions && cfg.upset_conditions[tag]) {
+                    if (input.type === 'checkbox') {
+                        cfg.upset_conditions[tag][field] = input.checked;
+                    } else {
+                        cfg.upset_conditions[tag][field] = parseInt(input.value) || 0;
                     }
                 }
             });

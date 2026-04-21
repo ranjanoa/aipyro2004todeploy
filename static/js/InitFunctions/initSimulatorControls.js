@@ -12,4 +12,10 @@ export function initSimulatorControls() {
     };
     if (state.currentModelConfig.control_variables) Object.keys(state.currentModelConfig.control_variables).sort().forEach(k => add(k, c));
     if (state.currentModelConfig.indicator_variables) Object.keys(state.currentModelConfig.indicator_variables).sort().forEach(k => add(k, i));
+
+    // Apply default color-by variable from config
+    const defaultColorBy = state.currentModelConfig.simulator_settings?.default_color_by;
+    if (defaultColorBy && Array.from(clr.options).some(opt => opt.value === defaultColorBy)) {
+        clr.value = defaultColorBy;
+    }
 }

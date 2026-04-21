@@ -28,6 +28,26 @@ def save_model_config(new_config):
     except Exception as e:
         return False, str(e)
 
+def apply_industrial_nudge(current, target, gain, def_min, def_max):
+    """
+    Applies a fractional gain nudge with a 1% span-based safety floor.
+    Standard Industrial calculation for setpoint ramping.
+    """
+    gap = target - current
+    span = abs(def_max - def_min)
+    
+    # Safety Floor: 1.0% of Span (or 0.1 for unit-less/default placeholders)
+    # Reducing from 5% to 1% to allow for finer control adjustments
+    min_push = max(0.001, (min(span, 10000) * 0.01)) if span > 0.001 else 0.1
+    
+    if abs(gap) > 0.001:
+        # Move is the LARGER of (gap * gain) or (1% of span floor)
+        move_request = max(abs(gap * gain), min_push)
+        # But never move further than the remaining gap itself
+        return current + np.sign(gap) * min(move_request, abs(gap))
+    else:
+        return target
+
 def apply_signal_filters(df):
     """
     Applies Rolling Median (Despiking) and Exponential Moving Average (EMA) (Smoothing)
@@ -307,19 +327,17 @@ def generate_calculated_actions(raw_actions, state_map, controls_cfg, indicators
             def_min, def_max = cfg.get('default_min', -9999), cfg.get('default_max', 9999)
             target_val = max(def_min, min(def_max, target_val))
             
-            # 2. Nudge Calculation (Absolute Step to match UI ground truth)
-            gap = target_val - curr_val
-            max_nudge = abs(float(cfg.get('nudge_speed', default_step_fraction)))
+            # 2. Industrial Nudge Calculation (Centralized utility)
+            gain = abs(float(cfg.get('nudge_speed', default_step_fraction))) # Treated as gain (0.0-1.0)
             
-            if abs(gap) > 0.001 and max_nudge > 0:
-                if gap > 0:
-                    nudged_target = min(curr_val + max_nudge, target_val)
-                else:
-                    nudged_target = max(curr_val - max_nudge, target_val)
-                reason = f"Calculated (Nudge @ {max_nudge} units)"
-            else:
-                nudged_target = target_val
+            nudged_target = apply_industrial_nudge(
+                curr_val, target_val, gain, def_min, def_max
+            )
+            
+            if abs(nudged_target - target_val) < 0.001:
                 reason = "Calculated (Synced)"
+            else:
+                reason = "Calculated (Nudge Applied)"
 
             new_actions.append({
                 "var_name": name, 
@@ -333,6 +351,51 @@ def generate_calculated_actions(raw_actions, state_map, controls_cfg, indicators
                 "is_calculated": True
             })
     return new_actions
+
+def finalize_setpoints_for_db(recommendation, current_state, config):
+    """
+    Centralized point-of-entry for the Industrial Nudge.
+    Ensures that regardless of which engine (AI/FP) proposed the target, 
+    the value written to InfluxDB is ALWAYS the safely nudged one.
+    """
+    controls_cfg = config.get('control_variables', {})
+    nudge_cfg = config.get('nudge_settings', {})
+    default_gain = nudge_cfg.get('step_fraction', 0.15)
+    
+    setpoints = {}
+    actions = recommendation.get('actions', [])
+    
+    for act in actions:
+        name = act.get('var_name')
+        if not name: continue
+        
+        # 1. Start with the Final Goal from the Engine
+        # We prefer 'fingerprint_set_point' or 'final_target' as the master goal
+        target = float(act.get('fingerprint_set_point') or act.get('final_target') or 0.0)
+        curr = float(current_state.get(name, 0.0) or 0.0)
+        
+        # 2. Get Nudge Config
+        # Nudge ONLY applies to Control Variables. Indicators/Calculated jump 100%.
+        if name in controls_cfg:
+            gain = abs(float(controls_cfg[name].get('nudge_speed', default_gain)))
+            def_min = float(controls_cfg[name].get('default_min', -9999))
+            def_max = float(controls_cfg[name].get('default_max', 9999))
+        else:
+            # Indicators/Calc/Misc -> 100% gain (Full Jump)
+            gain = 1.0
+            def_min, def_max = -9999, 9999
+            
+        # 3. Apply the One-and-Only Industrial Nudge formula
+        nudged_val = apply_industrial_nudge(curr, target, gain, def_min, def_max)
+        
+        # 4. Final output assignment
+        setpoints[name] = nudged_val
+        
+        # Update the action object in-place so UI is synced exactly to DB log
+        act['nudge_target'] = round(float(nudged_val), 4)
+
+    return setpoints
+
 
 def get_setpoint_tag_map():
     """Maps Friendly Name -> PLC Write Tag (Includes Calculated Setpoints)"""

@@ -457,51 +457,27 @@ def automated_control_loop():
                                 logger.warning(f"[UpsetManager] Import/eval error (pipeline continues): {_ue}")
                                 upset_actions = []
 
-                            # Build the setpoints dict for InfluxDB write
-                            # If upset actions exist, they replace individual targets
-                            setpoints = {}
+                            # ---------------------------------------------------
+                            # [CENTRALIZED NUDGE FINALIZATION]
+                            # Ensures Kiln2 DB and PLC always receive a safe, nudged value.
+                            # regardless of which engine (AI/FP) generated the goal.
+                            # ---------------------------------------------------
+                            setpoints = process_model.finalize_setpoints_for_db(recommendation, mapped_state, conf)
+
                             if upset_actions:
-                                logger.warning(
-                                    f"[UPSET-OVERRIDE] {len(upset_actions)} action(s) active - "
-                                    f"overriding AI/Fingerprint setpoints for affected variables."
-                                )
-                                # Build map: target -> overridden value
+                                logger.warning(f"[UPSET-OVERRIDE] {len(upset_actions)} action(s) active.")
                                 for act in upset_actions:
                                     target = act.get("target")
                                     if not target or act.get("type") in ("system_halt", "mode_switch"):
                                         continue
-                                    curr = mapped_state.get(target, 0.0) or 0.0
+                                    curr = float(mapped_state.get(target, 0.0) or 0.0)
                                     adj  = act.get("step_adjustment", 0.0)
-                                    if act.get("is_percentage"):
-                                        new_val = curr * (1.0 + adj / 100.0)
-                                    else:
-                                        new_val = curr + adj
-                                    setpoints[target] = new_val
-
-                                # Any variables NOT overridden by upset use AI recommendation
-                                for action in recommendation.get('actions', []):
-                                    vn = action.get('var_name')
-                                    if vn and vn not in setpoints:
-                                        # Prefer safe nudge for PLC write, failover to raw target
-                                        val = action.get('nudge_target', action.get('fingerprint_set_point'))
-                                        if val is not None:
-                                            setpoints[vn] = val
-
-                                # ---------------------------------------------------
-                                # FINALIZE setpoints dictionary
-                                # ---------------------------------------------------
-                                recommendation['upset_summary']  = [
-                                    f"{a.get('rule_id','?')}: {a.get('description', a.get('cascade_tier',''))}"
-                                    for a in upset_actions
-                                ]
+                                    setpoints[target] = curr * (1.0 + adj/100.0) if act.get("is_percentage") else curr + adj
+                                
+                                recommendation['upset_active'] = True
+                                recommendation['upset_summary'] = [f"{a.get('rule_id','?')}: {a.get('description', '')}" for a in upset_actions]
                             else:
-                                # Normal path — no upsets active
                                 recommendation['upset_active'] = False
-                                for action in recommendation.get('actions', []):
-                                    # Prefer safe nudge for PLC write, failover to raw target
-                                    val = action.get('nudge_target', action.get('fingerprint_set_point'))
-                                    if val is not None:
-                                        setpoints[action['var_name']] = val
 
                             # --- UI SYNCHRONIZATION ---
                             # Rebuild recommendation['actions'] so the dashboard always 
