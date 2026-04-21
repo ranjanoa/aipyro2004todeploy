@@ -229,6 +229,9 @@ class UpsetConditionEngine:
         if ctype == "sum_threshold":
             return self._eval_sum(cond, data)
 
+        if ctype == "sum_difference_threshold":
+            return self._eval_sum_difference(cond, data)
+
         if ctype == "rate_of_change":
             return self._eval_rate_of_change(cond, data, now)
 
@@ -323,6 +326,34 @@ class UpsetConditionEngine:
 
         delta = val - buf[0][1]
         return self._compare(delta, cond.get("operator", ">"), cond.get("threshold", 0))
+
+    def _eval_sum_difference(self, cond, data):
+        """
+        Calculates abs(sum(group_1) - sum(group_2)) and compares to threshold.
+        Useful for multi-line feeders (e.g., RDF1 + RDF2 vs RDF1_SP + RDF2_SP).
+        """
+        group1_vars = cond.get("variables_group_1", [])
+        group2_vars = cond.get("variables_group_2", [])
+        
+        if not group1_vars or not group2_vars:
+            return False
+            
+        v1_vals = [self._safe_val(v, data) for v in group1_vars]
+        v2_vals = [self._safe_val(v, data) for v in group2_vars]
+        
+        if any(v is None for v in v1_vals) or any(v is None for v in v2_vals):
+            return False
+            
+        sum1 = sum(v1_vals)
+        sum2 = sum(v2_vals)
+        diff = abs(sum1 - sum2)
+        
+        is_triggered = self._compare(diff, cond.get("operator", ">"), cond.get("threshold", 0))
+        
+        if is_triggered:
+            logger.debug(f"[UpsetManager] Sum Diff TRIGGERED: |{group1_vars}({sum1}) - {group2_vars}({sum2})| = {diff}")
+            
+        return is_triggered
 
 
 # ---------------------------------------------------------------------------

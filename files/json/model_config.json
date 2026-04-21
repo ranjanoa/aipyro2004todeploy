@@ -2484,10 +2484,14 @@
         "operator": ">",
         "persistence_sec": 10,
         "threshold": 1,
-        "type": "difference_threshold",
-        "variables": [
+        "type": "sum_difference_threshold",
+        "variables_group_1": [
           "RDF 1 (PC)",
-          "RDF 1 SP (PC)"
+          "RDF 2 (PC)"
+        ],
+        "variables_group_2": [
+          "RDF 1 SP (PC)",
+          "RDF 2 SP (PC)"
         ]
       }
     }
