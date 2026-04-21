@@ -1,5 +1,5 @@
 {
-  "active_strategy": "BALANCED",
+  "active_strategy": "TSR_MAX",
   "ai_bindings": {
     "description": "Maps AI roles to specific process tags",
     "output_keys": {
@@ -1684,38 +1684,8 @@
     }
   },
   "kpi_tags": {
-    "BZT": {
-      "decimals": 1,
-      "tag": "Kiln BZT1",
-      "unit": "C"
-    },
-    "CO": {
-      "decimals": 3,
-      "tag": "CO (kiln)",
-      "unit": "%"
-    },
-    "Feed": {
-      "decimals": 1,
-      "tag": "Kiln feed",
-      "unit": "t/h"
-    },
-    "MotorCurrent": {
-      "decimals": 1,
-      "tag": "Kiln motor 1 Amps",
-      "unit": "A"
-    },
-    "NOX": {
-      "decimals": 0,
-      "tag": "NOx (Kiln)",
-      "unit": "mg/Nm3"
-    },
-    "O2": {
-      "decimals": 2,
-      "tag": "O2 (C3)",
-      "unit": "%"
-    },
     "SHC": {
-      "decimals": 0,
+      "decimals": 1,
       "tag": "SHC",
       "unit": "kcal/kg"
     },
@@ -1723,6 +1693,11 @@
       "decimals": 1,
       "tag": "% TSR (Kiln)",
       "unit": "%"
+    },
+    "Feed": {
+      "decimals": 1,
+      "tag": "Kiln feed",
+      "unit": "t/h"
     }
   },
   "logic_tags": {
@@ -2301,7 +2276,7 @@
         "type": "bias"
       },
       "description": "ALF (RIP) cut/reduction - diff more than 300 lph for 10 sec",
-      "enabled": true,
+      "enabled": false,
       "group": "KILN",
       "priority": 1,
       "trigger_logic": {
