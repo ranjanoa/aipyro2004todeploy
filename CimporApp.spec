@@ -2,62 +2,28 @@
 import sys
 sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
+from PyInstaller.utils.hooks import collect_submodules
+
+# Collect all submodules for problematic packages
+dns_submodules = collect_submodules('dns')
+eventlet_submodules = collect_submodules('eventlet')
+
 a = Analysis(
     ['main.py'],
     pathex=['.'],
     binaries=[],
     datas=[('templates', 'templates'), ('static', 'static'), ('logo.ico', '.')],
     hiddenimports=[
-        'eventlet',
-        'eventlet.hubs.epolls',
-        'eventlet.hubs.kqueue',
-        'eventlet.hubs.selects',
-        'eventlet.hubs.poll',
-        'dns.rdtypes',
-        'dns.rdtypes.ANY',
-        'dns.rdtypes.ANY.MX',
-        'dns.rdtypes.ANY.NS',
-        'dns.rdtypes.ANY.SOA',
-        'dns.rdtypes.ANY.TXT',
-        'dns.rdtypes.ANY.ANY',
-        'dns.rdtypes.ANY.CNAME',
-        'dns.rdtypes.ANY.PTR',
-        'dns.rdtypes.ANY.SRV',
-        'dns.rdtypes.ANY.NAPTR',
-        'dns.rdtypes.ANY.CAA',
-        'dns.rdtypes.ANY.TLSA',
-        'dns.rdtypes.ANY.DS',
-        'dns.rdtypes.ANY.DNSKEY',
-        'dns.rdtypes.ANY.RRSIG',
-        'dns.rdtypes.ANY.NSEC',
-        'dns.rdtypes.ANY.NSEC3',
-        'dns.rdtypes.IN',
-        'dns.rdtypes.IN.A',
-        'dns.rdtypes.IN.AAAA',
-        'dns.rdtypes.CH',
-        'dns.rdtypes.CH.A',
-        'dns.rdtypes.CH.TXT',
-        'dns.rdtypes.HS',
-        'dns.rdtypes.HS.A',
-        'dns.rdtypes.HS.TXT',
-        'dns.asyncbackend',
-        'dns.asyncquery',
-        'dns.asyncresolver',
-        'dns.e164',
-        'dns.hash',
-        'dns.namedict',
-        'dns.tsigkeyring',
-        'dns.update',
-        'dns.version',
-        'dns.zone',
         'engineio.async_drivers.eventlet',
         'engineio.async_drivers.threading',
         'socketio.async_drivers.eventlet',
         'socketio.async_drivers.threading',
         'importlib_metadata',
         'pyarrow',
-        'fastparquet'
-    ],
+        'fastparquet',
+        'dns.btree',  # Explicitly include commonly missed submodules
+        'dns.node',
+    ] + dns_submodules + eventlet_submodules,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

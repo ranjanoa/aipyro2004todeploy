@@ -174,7 +174,7 @@
     },
     "Kiln feed": {
       "aipc": true,
-      "default_max": 250,
+      "default_max": 300,
       "default_min": 0,
       "description": "Kiln feed",
       "filtering": {
