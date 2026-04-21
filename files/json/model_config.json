@@ -174,8 +174,8 @@
     },
     "Kiln feed": {
       "aipc": true,
-      "default_max": 280,
-      "default_min": 200,
+      "default_max": 250,
+      "default_min": 0,
       "description": "Kiln feed",
       "filtering": {
         "ema_alpha": 0.2,
@@ -219,7 +219,7 @@
       "is_setpoint": true,
       "nudge_speed": 0.1,
       "op_summary": true,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "Kiln speed",
       "unit": "rpm"
     },
@@ -305,7 +305,7 @@
       "is_setpoint": true,
       "nudge_speed": 0.05,
       "op_summary": true,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "RDF (Kiln)",
       "unit": "t/h"
     },
@@ -322,7 +322,7 @@
       "is_setpoint": true,
       "nudge_speed": 0.3,
       "op_summary": true,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "RDF 1 (PC)",
       "unit": "t/h"
     },
@@ -339,7 +339,7 @@
       "is_setpoint": true,
       "nudge_speed": 0.3,
       "op_summary": true,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "RDF 2 (PC)",
       "unit": "t/h"
     },
@@ -715,7 +715,7 @@
       "nudge_speed": 0.05,
       "op_summary": true,
       "position": 10,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "CO (kiln)"
     },
     "Ck production": {
@@ -839,7 +839,7 @@
       },
       "nudge_speed": 0.05,
       "op_summary": false,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "Cooler grate P (chamber 3)"
     },
     "Cooler grate P (chamber 4)": {
@@ -852,7 +852,7 @@
       },
       "nudge_speed": 0.05,
       "op_summary": false,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "Cooler grate P (chamber 4)"
     },
     "Cooler grate pressure (avg)": {
@@ -997,7 +997,7 @@
       "nudge_speed": 0.05,
       "op_summary": true,
       "position": 18,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "Kiln BZT1"
     },
     "Kiln BZT2": {
@@ -1010,7 +1010,7 @@
       },
       "nudge_speed": 0.05,
       "op_summary": false,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "Kiln BZT2"
     },
     "Kiln feed LSF": {
@@ -1113,7 +1113,7 @@
         "median_window": 3
       },
       "nudge_speed": 0.05,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "Kiln motor 2 Amps"
     },
     "Kiln motor 2 speed": {
@@ -1168,7 +1168,7 @@
     },
     "NOx (Kiln)": {
       "default_max": 1000,
-      "default_min": 700,
+      "default_min": 0,
       "filtering": {
         "ema_alpha": 0.2,
         "enabled": true,
@@ -1177,12 +1177,12 @@
       "nudge_speed": 0.05,
       "op_summary": true,
       "position": 11,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "NOx (Kiln)"
     },
     "O2 (C3)": {
       "default_max": 3,
-      "default_min": 1.5,
+      "default_min": 0,
       "filtering": {
         "ema_alpha": 0.2,
         "enabled": true,
@@ -1191,12 +1191,12 @@
       "nudge_speed": 0.05,
       "op_summary": true,
       "position": 12,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "O2 (C3)"
     },
     "O2 (Kiln)": {
       "default_max": 3,
-      "default_min": 2,
+      "default_min": 0,
       "filtering": {
         "ema_alpha": 0.2,
         "enabled": true,
@@ -1205,7 +1205,7 @@
       "nudge_speed": 0.05,
       "op_summary": true,
       "position": 13,
-      "priority": 1,
+      "priority": 3,
       "tag_name": "O2 (Kiln)"
     },
     "PC outlet T1": {
@@ -1684,6 +1684,11 @@
     }
   },
   "kpi_tags": {
+    "Feed": {
+      "decimals": 1,
+      "tag": "Kiln feed",
+      "unit": "t/h"
+    },
     "SHC": {
       "decimals": 1,
       "tag": "SHC",
@@ -1693,11 +1698,6 @@
       "decimals": 1,
       "tag": "% TSR (Kiln)",
       "unit": "%"
-    },
-    "Feed": {
-      "decimals": 1,
-      "tag": "Kiln feed",
-      "unit": "t/h"
     }
   },
   "logic_tags": {

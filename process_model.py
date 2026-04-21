@@ -142,20 +142,8 @@ def build_api_response(real_df, match_row, future_df, score, confidence, mode):
     calc_vars_cfg = conf.get('calculated_variables', {})
 
     # 1. SCORE CALCULATION
-    if (score is None or score <= 0.1) and not real_df.empty:
-        total_error = 0
-        valid_vars = 0
-        for var, data in controls.items():
-            col = data.get('tag_name', var)
-            try:
-                curr = float(real_df.iloc[-1][col]) if col in real_df.columns else 0
-                hist = float(match_row.get(col, 0))
-                if curr != 0:
-                    total_error += abs((hist - curr) / curr)
-                    valid_vars += 1
-            except: pass
-        if valid_vars > 0:
-            score = round(max(0, 100 - (total_error / valid_vars * 100)), 1)
+    # Legacy auto-correction removed to ensure Honest Fallback (0.0%) is preserved.
+    if score is None: score = 0.0
 
     # 2. RAW ACTIONS (From NN/Fingerprint)
     actions = []

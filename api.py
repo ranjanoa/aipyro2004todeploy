@@ -280,23 +280,44 @@ def find_fingerprint():
 
         current_state = real_df.iloc[-1]
 
-        ranges, min_max, trend = fingerprint_engine.calculate_deviation_ranges(current_state, req_data)
-        candidates = fingerprint_engine.filter_historical_by_deviation(hist_df, ranges)
+        strict, absolute, drift = fingerprint_engine.calculate_deviation_ranges(current_state, req_data)
+        candidates = fingerprint_engine.filter_historical_by_deviation(hist_df, strict)
 
+        is_fallback = False
         if candidates.empty:
-            candidates = hist_df.tail(100)
+            is_fallback = True
+            # NEAR-MISS FALLBACK: Find the closest rows based on normalized distance
+            candidates = fingerprint_engine.find_closest_historical_batches(hist_df, current_state, strict.keys())
 
         weights = process_model.get_optimization_weights()
         controls_cfg = process_model.get_control_variables()
         indicators_cfg = process_model.get_indicator_variables()
 
-        # THIS RETURNS BATCHES 1-5
+        # THIS RETURNS BATCHES 1-5 (Diverse & Stable)
         final_timestamps = fingerprint_engine.rank_and_select_recommendations(
             hist_df, candidates, weights=weights, current_state=current_state, controls_cfg=controls_cfg
         )
 
-        formatted_results = []
+        # Track which results are "Honest" (within strict limits) vs "Near-Misses"
+        all_matches = [] # list of (timestamp, is_fallback_flag)
         for ts in final_timestamps:
+            all_matches.append((ts, is_fallback)) # if global is_fallback was True, these are all fallbacks
+
+        # If we have fewer than 5 diverse matches, fill the rest with "Near-Miss" neighbors
+        if len(all_matches) < 5:
+            needed = 5 - len(all_matches)
+            # Find closest batches excluding those already found
+            existing_ts = [m[0] for m in all_matches]
+            remaining_hist = hist_df[~hist_df[config.TIMESTAMP_COLUMN].isin(existing_ts)]
+            
+            near_misses = fingerprint_engine.find_closest_historical_batches(
+                remaining_hist, current_state, strict.keys(), limit=needed
+            )
+            for ts in near_misses[config.TIMESTAMP_COLUMN].tolist():
+                all_matches.append((ts, True)) # These are forced fallbacks
+
+        formatted_results = []
+        for ts, force_fallback in all_matches:
             try:
                 matches = hist_df.index[hist_df[config.TIMESTAMP_COLUMN] == ts].tolist()
                 if not matches: continue
@@ -308,13 +329,16 @@ def find_fingerprint():
                     padding = [pred_df.iloc[-1]] * (future_time - len(pred_df))
                     pred_df = pd.concat([pred_df, pd.DataFrame(padding)])
 
-                # Calculate real similarity score for EVERY search result
+                # Calculate real similarity score
                 sim_pct = fingerprint_engine.calculate_match_percentage(
                     current_state.to_dict() if hasattr(current_state, 'to_dict') else dict(current_state), 
                     row.to_dict() if hasattr(row, 'to_dict') else dict(row), 
                     controls_cfg,
                     indicators_cfg
                 )
+
+                # HONEST FALLBACK: Force score to 0.0 if this was a filled near-miss
+                if force_fallback: sim_pct = 0.0
 
                 api_obj = process_model.build_api_response(real_df, row, pred_df, sim_pct, 0, 0)
                 formatted_results.append(api_obj)
