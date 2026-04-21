@@ -285,11 +285,18 @@ class UpsetConditionEngine:
         vars_ = cond.get("variables", [])
         if len(vars_) != 2:
             return False
-        v1 = self._safe_val(vars_[0], data)
-        v2 = self._safe_val(vars_[1], data)
-        if v1 is None or v2 is None:
+        v1_val = self._safe_val(vars_[0], data)
+        v2_val = self._safe_val(vars_[1], data)
+        if v1_val is None or v2_val is None:
             return False
-        return self._compare(abs(v1 - v2), cond.get("operator", ">"), cond.get("threshold", 0))
+        
+        diff = abs(v1_val - v2_val)
+        is_triggered = self._compare(diff, cond.get("operator", ">"), cond.get("threshold", 0))
+        
+        if is_triggered:
+            logger.debug(f"[UpsetManager] Diff Threshold TRIGGERED: |{vars_[0]}({v1_val}) - {vars_[1]}({v2_val})| = {diff}")
+            
+        return is_triggered
 
     def _eval_sum(self, cond, data):
         vals = [self._safe_val(v, data) for v in cond.get("variables", [])]

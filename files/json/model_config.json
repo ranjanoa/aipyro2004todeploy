@@ -2310,7 +2310,7 @@
         "threshold": 300,
         "type": "difference_threshold",
         "variables": [
-          "RIP (LER 191211) (Kiln)",
+          "RIP (Kiln)",
           "RIP SP (Kiln)"
         ]
       }
