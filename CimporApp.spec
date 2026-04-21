@@ -4,10 +4,11 @@ sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
 a = Analysis(
     ['main.py'],
-    pathex=[],
+    pathex=['.'],
     binaries=[],
-    datas=[('templates', 'templates'), ('static', 'static')],
+    datas=[('templates', 'templates'), ('static', 'static'), ('logo.ico', '.')],
     hiddenimports=[
+        'eventlet',
         'eventlet.hubs.epolls',
         'eventlet.hubs.kqueue',
         'eventlet.hubs.selects',
@@ -20,8 +21,23 @@ a = Analysis(
         'dns.rdtypes.TXT',
         'dns.rdtypes.AAAA',
         'dns.rdtypes.A',
+        'dns.asyncbackend',
+        'dns.asyncquery',
+        'dns.asyncresolver',
+        'dns.e164',
+        'dns.hash',
+        'dns.namedict',
+        'dns.tsigkeyring',
+        'dns.update',
+        'dns.version',
+        'dns.zone',
         'engineio.async_drivers.eventlet',
-        'importlib_metadata'
+        'engineio.async_drivers.threading',
+        'socketio.async_drivers.eventlet',
+        'socketio.async_drivers.threading',
+        'importlib_metadata',
+        'pyarrow',
+        'fastparquet'
     ],
     hookspath=[],
     hooksconfig={},
