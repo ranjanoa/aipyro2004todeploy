@@ -30,20 +30,10 @@ jobs:
 
     - name: Build Executable
       run: |
-        pyinstaller --name "ProcessOptimizationApp" --onefile `
-          --add-data "templates;templates" `
-          --add-data "static;static" `
-          --icon "logo.ico" `
-          --hidden-import "engineio.async_drivers.threading" `
-          --hidden-import "engineio.async_drivers.eventlet" `
-          --hidden-import "engineio.async_drivers.gevent" `
-          --hidden-import "eventlet" `
-          --hidden-import "pyarrow" `
-          --hidden-import "fastparquet" `
-          main.py
+        pyinstaller CimporApp.spec --noconfirm
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ProcessOptimizationApp-Windows
-        path: dist/ProcessOptimizationApp.exe
+        name: CimporApp-Windows
+        path: dist/CimporApp.exe
