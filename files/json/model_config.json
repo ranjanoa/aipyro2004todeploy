@@ -882,18 +882,19 @@
             "tag_name": "Dividing gate SP"
         },
         "Free CaO": {
-            "default_max": 2.5,
+            "default_max": 5,
             "default_min": 0,
             "filtering": {
-                "ema_alpha": 0.2,
                 "enabled": true,
+                "ema_alpha": 0.2,
                 "median_window": 3
             },
-            "nudge_speed": 0.05,
+            "nudge_speed": 0.0,
             "op_summary": true,
             "position": 21,
-            "priority": 2,
-            "tag_name": "Free CaO"
+            "priority": 1,
+            "tag_name": "Free CaO",
+            "description": "Burnability metric for raw meal"
         },
         "Free CaO (DRX)": {
             "default_max": 7.98,
@@ -1869,19 +1870,19 @@
     "scoring_settings": {
         "age_penalty_per_day": 0.5,
         "comment": "age_penalty_per_day: penalty per calendar day old (0.5 = 365 days old loses 182 points). recency_boost: flat bonus for fingerprints within N days. trend: bonus/penalty for directional alignment.",
-        "distance_penalty_weight": 2500,
+        "distance_penalty_weight": 1000.0,
         "priority_multipliers": {
-            "1": 25,
-            "2": 10,
-            "3": 5,
-            "4": 1,
-            "5": 0.1
+            "1": 10.0,
+            "2": 5.0,
+            "3": 2.0,
+            "4": 1.0,
+            "5": 0.5
         },
         "recency_boost_days": 14,
         "recency_boost_value": 200,
         "search_aggression": 1,
-        "trend_match_bonus": 50,
-        "trend_mismatch_penalty": 100
+        "trend_match_bonus": 50.0,
+        "trend_mismatch_penalty": 200.0
     },
     "strategies": {
         "BALANCED": {

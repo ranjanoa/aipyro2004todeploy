@@ -281,26 +281,56 @@ def materialize_df(df, controls_cfg, indicators_cfg, calc_vars_cfg):
     return enriched_df
 
 def generate_calculated_actions(raw_actions, state_map, controls_cfg, indicators_cfg, calc_vars_cfg):
-    """Generates 'Action' objects for derived variables."""
+    """Generates 'Action' objects for derived variables with built-in safety nudging."""
     if not calc_vars_cfg: return []
+    
+    full_conf = load_model_config()
+    nudge_cfg = full_conf.get('nudge_settings', {})
+    default_step_fraction = nudge_cfg.get('step_fraction', 0.15)
+
     target_context = state_map.copy()
     for action in raw_actions:
+        # Use absolute targets to evaluate the formula's eventual goal
         target_context[action['var_name']] = action['fingerprint_set_point']
+        
     calculated_targets = evaluate_formulas(target_context, controls_cfg, indicators_cfg, calc_vars_cfg)
     calculated_currents = evaluate_formulas(state_map, controls_cfg, indicators_cfg, calc_vars_cfg)
+    
     new_actions = []
     for k, cfg in calc_vars_cfg.items():
         if cfg.get('is_control'):
             name = cfg.get('friendly_name', k)
-            curr_val = calculated_currents.get(name, 0.0)
-            target_val = calculated_targets.get(name, 0.0)
+            curr_val = float(calculated_currents.get(name, 0.0))
+            target_val = float(calculated_targets.get(name, 0.0))
+            
+            # 1. Clamping to absolute limits
             def_min, def_max = cfg.get('default_min', -9999), cfg.get('default_max', 9999)
             target_val = max(def_min, min(def_max, target_val))
+            
+            # 2. Nudge Calculation (Absolute Step to match UI ground truth)
+            gap = target_val - curr_val
+            max_nudge = abs(float(cfg.get('nudge_speed', default_step_fraction)))
+            
+            if abs(gap) > 0.001 and max_nudge > 0:
+                if gap > 0:
+                    nudged_target = min(curr_val + max_nudge, target_val)
+                else:
+                    nudged_target = max(curr_val - max_nudge, target_val)
+                reason = f"Calculated (Nudge @ {max_nudge} units)"
+            else:
+                nudged_target = target_val
+                reason = "Calculated (Synced)"
+
             new_actions.append({
-                "var_name": name, "current_setpoint": curr_val,
-                "fingerprint_set_point": target_val, "final_target": target_val,
-                "diff": target_val - curr_val,
-                "reason": "Calculated (Synced)", "type": "Control", "is_calculated": True
+                "var_name": name, 
+                "current_setpoint": curr_val,
+                "fingerprint_set_point": target_val, # Final absolute target
+                "nudge_target": nudged_target,      # Safe absolute step
+                "final_target": target_val,
+                "diff": nudged_target - curr_val,
+                "reason": reason, 
+                "type": "Control", 
+                "is_calculated": True
             })
     return new_actions
 

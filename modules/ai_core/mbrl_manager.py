@@ -453,13 +453,13 @@ def get_optimal_action(current_real_df):
         def_max = controls_cfg.get(tag, {}).get('default_max', 9999)
         ultimate_goal = max(def_min, min(def_max, ultimate_goal))
 
-        step_magnitude = abs(current_val * 0.01)
-        if step_magnitude < 0.01: step_magnitude = 0.1
+        # Nudge Calculation (Absolute Step to match UI/Fingerprint logic)
+        max_step = abs(float(controls_cfg.get(tag, {}).get('nudge_speed', 0.05)))
         delta = ultimate_goal - current_val
 
-        if abs(delta) > step_magnitude:
-            nudged_val = current_val + (np.sign(delta) * step_magnitude)
-            reason = "Ramping (1%)"
+        if abs(delta) > max_step:
+            nudged_val = current_val + (np.sign(delta) * max_step)
+            reason = f"Ramping (Step @ {max_step} units)"
         else:
             nudged_val = ultimate_goal
             reason = "Fine Tuning"
@@ -469,7 +469,8 @@ def get_optimal_action(current_real_df):
 
         ui_actions.append({
             "var_name": tag,
-            "fingerprint_set_point": float(nudged_val),
+            "fingerprint_set_point": float(ultimate_goal), # Absolute NN Output
+            "nudge_target": float(nudged_val), # Safe 1% throttle
             "final_target": float(ultimate_goal),
             "current_setpoint": str(round(current_val, 2)),
             "unit": controls_cfg.get(tag, {}).get('unit', ''),

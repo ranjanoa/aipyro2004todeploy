@@ -556,7 +556,7 @@ def calculate_match_percentage(current_state, row, controls_cfg, indicators_cfg=
 
 
 def _calculate_core_score(row, current_state, controls_cfg, weights=None, active_constraints=None, inv_cov=None,
-                          live_slopes=None, penalty_weight=1000.0, is_advanced=False, active_tags_ordered=None):
+                          live_slopes=None, penalty_weight=1000.0, is_advanced=False, active_tags_ordered=None, past_row=None):
     score = 0.0
     now = pd.Timestamp.now()
     ts_col = get_timestamp_col()
@@ -656,20 +656,20 @@ def _calculate_core_score(row, current_state, controls_cfg, weights=None, active
     # 3. SLOPE / DIRECTIONAL TREND BONUS (Bug #3 Fix)
     # Reward fingerprints that were moving in the SAME direction as the current plant state.
     # Penalty for fingerprints moving in the OPPOSITE direction (physically dangerous).
-    if live_slopes and is_advanced:
+    if live_slopes and is_advanced and past_row is not None:
         slope_cfg = conf.get('scoring_settings', {})
         slope_bonus = float(slope_cfg.get('trend_match_bonus', 50.0))
-        slope_penalty = float(slope_cfg.get('trend_mismatch_penalty', 100.0))
+        slope_penalty = float(slope_cfg.get('trend_mismatch_penalty', 200.0)) # Hard penalty for opposite trajectory
         slope_bonus_total = 0.0
         slope_penalty_total = 0.0
         for tag, live_slope in live_slopes.items():
-            if tag in row:
-                # Compute historical slope: difference vs preceding row
-                # Using a simple proxy: if hist value > current it was rising, else falling
-                curr_val = float(current_state.get(tag, 0))
-                hist_val = float(row.get(tag, curr_val))
-                hist_direction = hist_val - curr_val  # positive = historically was higher
-                if live_slope != 0 and hist_direction != 0:
+            if tag in row and tag in past_row:
+                # Compute true historical trajectory (T=0 minus T=-10 timestamp)
+                hist_val_now = float(row.get(tag, 0))
+                hist_val_past = float(past_row.get(tag, hist_val_now))
+                hist_direction = hist_val_now - hist_val_past  # positive = historically was rising
+                
+                if abs(live_slope) > 1e-4 and abs(hist_direction) > 1e-4:
                     if (live_slope > 0) == (hist_direction > 0):
                         slope_bonus_total += slope_bonus
                     else:
@@ -971,6 +971,12 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
         pass
 
     def _adv_score_wrapper(row):
+        try:
+            r_idx = int(row.name)
+            past_row = historical_df.loc[r_idx - 10] if r_idx > 10 and (r_idx - 10) in historical_df.index else row
+        except Exception:
+            past_row = row
+
         # Bug #1 Fix: Pass active_tags in strict order so u_vec/v_vec dimensions always
         # match inv_cov. Previously, source_items dict iteration could be in any order.
         return _calculate_core_score(
@@ -979,7 +985,8 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
             inv_cov=inv_cov,
             live_slopes=live_slopes,  # Bug #3: directional slope vectors
             active_tags_ordered=active_tags,  # Bug #1: guarantees vector ordering
-            is_advanced=True
+            is_advanced=True,
+            past_row=past_row
         )
 
     final_matches = final_matches.copy()
@@ -1211,6 +1218,7 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
                     matched_rows = hist_df[hist_df[ts_col].astype(str) == str(target_disp)]
                     if not matched_rows.empty:
                         target_vals = matched_rows.iloc[0].to_dict()
+                        pure_historical_row = dict(target_vals)
                         engine_logger.info(f"[MANUAL] Loaded historical context for {target_disp}")
 
                     # Override/Enrich with the specifically requested manual setpoints
@@ -1278,21 +1286,36 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
                             key = 'matched_' + fuel_tag.replace(' ', '_').lower()[:30]
                             match_meta[key] = round(float(best.get(fuel_tag, 0)), 3)
 
+                    # THE GOLDEN ENVELOPE UPGRADE: Average Control Variables across the top 5 best batches.
+                    best = best_rows[0]
+                    pure_historical_row = dict(best)
+                    target_vals_dict = dict(best)
+                    try:
+                        top_5 = pd.DataFrame(best_rows[:5])
+                        for ctrl_tag in controls_cfg.keys():
+                            if ctrl_tag in top_5.columns:
+                                valid_ctrls = top_5[ctrl_tag].replace(0, np.nan).dropna()
+                                if not valid_ctrls.empty:
+                                    target_vals_dict[ctrl_tag] = float(valid_ctrls.median()) # Median noise cancellation
+                    except Exception as e:
+                        engine_logger.warning(f"[AUTO] Golden Envelope aggregation failed: {e}")
+
                     # Enrich top matches with their individual similarity scores
                     enriched_matches = []
                     ts_col = get_timestamp_col()
-                    for match_row in best_rows:
+                    for match_row in best_rows[:5]:
                         ts = match_row.get(ts_col)
-                        s = calculate_match_percentage(current_state, match_row, controls_cfg, indicators_cfg)
+                        s = calculate_match_percentage(current_state, dict(match_row), controls_cfg, indicators_cfg)
                         enriched_matches.append({
                             "timestamp": str(ts),
                             "similarity": round(s, 1)
                         })
 
                     CACHED_AUTO_RESULT = {
-                        'target_vals': dict(best),  # Use the already resolved best row
+                        'target_vals': target_vals_dict,
+                        'pure_historical_row': pure_historical_row,
                         'target_disp': str(best.get(ts_col)),
-                        'top_matches': enriched_matches,  # Enriched objects
+                        'top_matches': enriched_matches,
                         'match_meta': match_meta
                     }
                     LAST_AUTO_SCAN_TIME = now
@@ -1311,6 +1334,7 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
 
             if CACHED_AUTO_RESULT:
                 target_vals = CACHED_AUTO_RESULT["target_vals"]
+                pure_historical_row = CACHED_AUTO_RESULT.get("pure_historical_row", target_vals)
                 target_disp = CACHED_AUTO_RESULT["target_disp"]
                 top_matches = CACHED_AUTO_RESULT.get("top_matches", [])
                 match_meta = CACHED_AUTO_RESULT.get("match_meta", {})
@@ -1319,7 +1343,9 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
 
         # ARCHIVAL FIX: Always calculate similarity score, even for MANUAL targets.
         # This provides the operator with real-time feedback on how far they are from the target.
-        if target_vals:
+        if target_vals and 'pure_historical_row' in locals():
+            sim_pct = calculate_match_percentage(current_state, pure_historical_row, controls_cfg, indicators_cfg)
+        elif target_vals:
             sim_pct = calculate_match_percentage(current_state, target_vals, controls_cfg, indicators_cfg)
             if match_meta:
                 match_meta['similarity_score'] = round(sim_pct, 1)
@@ -1337,26 +1363,27 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
             curr = float(current_state.get(tag, 0))
             tgt = align_magnitude(float(target_vals.get(tag, curr)), curr)
 
+            # Calculation logic to match the frontend JS EXACTLY (Absolute Step)
             gap = tgt - curr
-
-            # Use variable-specific nudge_speed (expert-tuned in JSON) or global step_fraction
-            var_speed = cfg_var.get('nudge_speed', step_fraction)
-            # Calculate a CONSTANT step size (e.g., 25% of the current value)
-            constant_step = abs(curr) * var_speed
-
-            # If the gap is larger than our constant step, take the full constant step
-            if abs(gap) > constant_step:
-                step = constant_step if gap > 0 else -constant_step
-            # If the gap is smaller than the constant step, just snap perfectly to the target!
+            max_step = abs(float(cfg_var.get('nudge_speed', step_fraction)))
+            
+            if abs(gap) > 0.001 and max_step > 0:
+                if gap > 0:
+                    nudged_target = min(curr + max_step, tgt)
+                else:
+                    nudged_target = max(curr - max_step, tgt)
+                reason_final = f"{reason} (Step @ {max_step} units)"
             else:
-                step = gap
+                nudged_target = tgt
+                reason_final = f"{reason} (Synced)"
 
             ui_actions.append({
                 "var_name": tag,
-                "fingerprint_set_point": curr + step,
-                "final_target": float(target_vals.get(tag, curr)),
+                "fingerprint_set_point": tgt,  # TRUE unthrottled batch target
+                "nudge_target": nudged_target,   # Throttled absolute step 
+                "final_target": tgt,
                 "current_setpoint": str(curr),
-                "reason": f"{reason} (Linear Ramp @ {var_speed * 100:.1f}%)"
+                "reason": reason_final
             })
 
         # CRITICAL: Synchronize metadata with the fresh live calculation

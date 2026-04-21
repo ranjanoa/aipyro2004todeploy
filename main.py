@@ -482,7 +482,8 @@ def automated_control_loop():
                                 for action in recommendation.get('actions', []):
                                     vn = action.get('var_name')
                                     if vn and vn not in setpoints:
-                                        val = action.get('fingerprint_set_point')
+                                        # Prefer safe nudge for PLC write, failover to raw target
+                                        val = action.get('nudge_target', action.get('fingerprint_set_point'))
                                         if val is not None:
                                             setpoints[vn] = val
 
@@ -497,7 +498,8 @@ def automated_control_loop():
                                 # Normal path — no upsets active
                                 recommendation['upset_active'] = False
                                 for action in recommendation.get('actions', []):
-                                    val = action.get('fingerprint_set_point')
+                                    # Prefer safe nudge for PLC write, failover to raw target
+                                    val = action.get('nudge_target', action.get('fingerprint_set_point'))
                                     if val is not None:
                                         setpoints[action['var_name']] = val
 
@@ -516,11 +518,16 @@ def automated_control_loop():
                                 orig = next((a for a in recommendation.get('actions', []) if a['var_name'] == vn), None)
                                 curr = float(mapped_state.get(vn, 0.0) or 0.0)
                                 
+                                # Restore unthrottled target metadata for UI parsing
+                                fingerprint_absolute = orig.get('fingerprint_set_point') if orig else val
+                                final_tgt = orig.get('final_target') if orig else fingerprint_absolute
+
                                 new_ui_actions.append({
                                     "var_name": vn,
                                     "current_setpoint": curr,
-                                    "fingerprint_set_point": round(val, 4),
-                                    "final_target": round(val, 4),
+                                    "fingerprint_set_point": round(fingerprint_absolute, 4), # UI parses this as Final Target
+                                    "nudge_target": round(val, 4), # UI processes this as Nudge
+                                    "final_target": round(final_tgt, 4),
                                     "diff": round(val - curr, 4),
                                     "reason": 'Upset Override' if vn in upset_targets else (orig.get('reason', 'Optimizing') if orig else 'Optimizing'),
                                     "type": "Control"
@@ -597,6 +604,10 @@ def automated_control_loop():
                             recommendation['insights'] = insights
 
                             if setpoints:
+                                logger.info(f"[DB-WRITE] Measurement: {config.DB_MEASUREMENT_SETPOINTS} | Points: {len(setpoints)}")
+                                for vn, v in setpoints.items():
+                                    logger.debug(f"  -> {vn}: {v}")
+                                
                                 setpoint_map = process_model.get_setpoint_tag_map()
                                 scale_factors = process_model.get_setpoint_scale_factors()
                                 database.write_setpoints(datetime.utcnow(), setpoints, setpoint_map, scale_factors)

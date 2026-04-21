@@ -115,8 +115,16 @@ export function updateHybridDashboard(data) {
                             ? parseFloat(state.latestLiveValues[act.var_name])
                             : parseFloat(act.current_setpoint || 0);
                     
-                    const nudgeTarget = parseFloat(act.fingerprint_set_point) || 0;
-                    const finalTarget = parseFloat(act.final_target !== undefined ? act.final_target : nudgeTarget);
+                    const finalTarget = parseFloat(act.fingerprint_set_point || 0);
+                    const varConfSpeed = varConf ? (Math.abs(parseFloat(varConf.nudge_speed)) || 0.05) : 0.05;
+
+                    let nudgeTarget = liveCurr;
+                    if (finalTarget > liveCurr) {
+                        nudgeTarget = Math.min(liveCurr + varConfSpeed, finalTarget);
+                    } else if (finalTarget < liveCurr) {
+                        nudgeTarget = Math.max(liveCurr - varConfSpeed, finalTarget);
+                    }
+
                     const diff = finalTarget - liveCurr;
 
                     let nudgeHtml = `<span class="text-gray-500">-</span>`;
