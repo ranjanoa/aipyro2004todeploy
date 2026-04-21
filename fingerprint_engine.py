@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import json
 from datetime import datetime, timedelta
@@ -36,7 +37,8 @@ def setup_logging():
     if not _logger.handlers:
         if not os.path.exists("logs"):
             os.makedirs("logs", exist_ok=True)
-        fh = logging.FileHandler("logs/fingerprint_debug.log", encoding='utf-8')
+        # Use RotatingFileHandler: 5MB per file, keep 5 backups
+        fh = RotatingFileHandler("logs/fingerprint_debug.log", maxBytes=5*1024*1024, backupCount=5, encoding='utf-8')
         fh.setLevel(logging.INFO)
         # Fix: Windows console (cp1252) can't render emoji ([INIT], [OK], [ERR]).
         # Reconfigure stdout to UTF-8 so log messages with unicode chars work.

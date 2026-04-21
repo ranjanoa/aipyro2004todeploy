@@ -58,21 +58,23 @@ def get_realtime_data_window(start_time, end_time, process_tags, tag_map):
     client = get_db_client()
     if not client: return pd.DataFrame()
 
-    field_filters = ' or '.join([f'r["_field"] == "{tag}"' for tag in process_tags])
-    query = f'''
-    from(bucket: "{config.DB_BUCKET}")
-      |> range(start: {start_time.isoformat()}Z, stop: {end_time.isoformat()}Z)
-      |> filter(fn: (r) => r["_measurement"] == "{config.DB_MEASUREMENT_OPC}" or r["_measurement"] == "{config.DB_MEASUREMENT_PI}" or r["_measurement"] == "{config.DB_MEASUREMENT}")
-      |> filter(fn: (r) => {field_filters})
-      |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-    '''
     try:
+        field_filters = ' or '.join([f'r["_field"] == "{tag}"' for tag in process_tags])
+        query = f'''
+        from(bucket: "{config.DB_BUCKET}")
+          |> range(start: {start_time.isoformat()}Z, stop: {end_time.isoformat()}Z)
+          |> filter(fn: (r) => r["_measurement"] == "{config.DB_MEASUREMENT_OPC}" or r["_measurement"] == "{config.DB_MEASUREMENT_PI}" or r["_measurement"] == "{config.DB_MEASUREMENT}")
+          |> filter(fn: (r) => {field_filters})
+          |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+        '''
         df = client.query_api().query_data_frame(org=config.DB_ORG, query=query)
         if isinstance(df, list): df = pd.concat(df) if df else pd.DataFrame()
         return _rename_and_format_df(df, tag_map) if not df.empty else pd.DataFrame()
     except Exception as e:
         print(f"Error: {e}")
         return pd.DataFrame()
+    finally:
+        client.close()
 
 
 def write_setpoints(timestamp, setpoints_dict, setpoint_tag_map, scale_factors):
