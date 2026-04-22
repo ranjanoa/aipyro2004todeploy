@@ -1,5 +1,5 @@
 import eventlet
-eventlet.monkey_patch()
+eventlet.monkey_patch(all=True)
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="eventlet")
 import os
@@ -104,7 +104,7 @@ static_dir = os.path.join(config.BASE_DIR, 'static')
 
 app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 app.config.from_object('config')
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 
 # Note: We use config.CONTROL_MODE instead of a local variable now.
