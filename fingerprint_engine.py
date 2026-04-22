@@ -38,7 +38,8 @@ def setup_logging():
         if not os.path.exists("logs"):
             os.makedirs("logs", exist_ok=True)
         # Use RotatingFileHandler: 5MB per file, keep 5 backups
-        fh = RotatingFileHandler("logs/fingerprint_debug.log", maxBytes=5*1024*1024, backupCount=5, encoding='utf-8')
+        fh = RotatingFileHandler("logs/fingerprint_debug.log", maxBytes=5 * 1024 * 1024, backupCount=5,
+                                 encoding='utf-8')
         fh.setLevel(logging.INFO)
         # Fix: Windows console (cp1252) can't render emoji ([INIT], [OK], [ERR]).
         # Reconfigure stdout to UTF-8 so log messages with unicode chars work.
@@ -314,7 +315,8 @@ def check_future_stability(historical_df, candidate_ts):
     try:
         conf = get_model_config_safe()
         strategy_name, strat = get_active_strategy(conf)
-        lookahead = conf.get('logic_tags', {}).get('stability_lookahead', 120)
+        # 30-MINUTE STABILITY HORIZON
+        lookahead = conf.get('logic_tags', {}).get('stability_lookahead', 30)
 
         # Strategy's own stability_tags take priority; fall back to shared logic_tags
         stability_tag_list = strat.get('stability_tags', [])
@@ -560,7 +562,8 @@ def calculate_match_percentage(current_state, row, controls_cfg, indicators_cfg=
 
 
 def _calculate_core_score(row, current_state, controls_cfg, weights=None, active_constraints=None, inv_cov=None,
-                          live_slopes=None, penalty_weight=1000.0, is_advanced=False, active_tags_ordered=None, past_row=None):
+                          live_slopes=None, penalty_weight=1000.0, is_advanced=False, active_tags_ordered=None,
+                          past_row=None):
     score = 0.0
     now = pd.Timestamp.now()
     ts_col = get_timestamp_col()
@@ -663,7 +666,7 @@ def _calculate_core_score(row, current_state, controls_cfg, weights=None, active
     if live_slopes and is_advanced and past_row is not None:
         slope_cfg = conf.get('scoring_settings', {})
         slope_bonus = float(slope_cfg.get('trend_match_bonus', 50.0))
-        slope_penalty = float(slope_cfg.get('trend_mismatch_penalty', 200.0)) # Hard penalty for opposite trajectory
+        slope_penalty = float(slope_cfg.get('trend_mismatch_penalty', 200.0))  # Hard penalty for opposite trajectory
         slope_bonus_total = 0.0
         slope_penalty_total = 0.0
         for tag, live_slope in live_slopes.items():
@@ -697,12 +700,11 @@ def _calculate_core_score(row, current_state, controls_cfg, weights=None, active
                 score += recency_bonus
         except:
             pass
-
     return score
 
 
 # ==============================================================================
-# 5. SEARCH & OPTIMIZATION
+# 5. SEARCH & OPTIMIZATION (INTEGRATED NEAR-MISS)
 # ==============================================================================
 def apply_golden_filter(hist_df):
     """Applies golden_filter_tag plus the golden_prefilter block.
@@ -772,6 +774,57 @@ def get_mahalanobis_matrix(hist_df, active_cols):
         return None
 
 
+def find_closest_historical_batches(historical_df, current_state, filter_tags, limit=50):
+    """
+    Near-Miss Fallback: Mathematically finds the closest neighbors when strict filtering fails.
+    Uses normalized error (error / std) to ensure unit-independence.
+    """
+    if historical_df.empty: return pd.DataFrame()
+    engine_logger.info(f"--- [SCAN] Executing Near-Miss Fallback (Normalized Distance) ---")
+
+    # Pre-calculate distances for the specified tags
+    temp_df = historical_df.copy()
+    total_dist_sq = pd.Series(0.0, index=temp_df.index)
+
+    valid_tags = [t for t in filter_tags if t in temp_df.columns and t in current_state]
+    if not valid_tags:
+        return temp_df.tail(limit)
+
+    for tag in valid_tags:
+        curr_val = float(current_state[tag])
+        std = temp_df[tag].std()
+        if std == 0 or np.isnan(std): std = 1.0  # Avoid div by zero
+
+        # Proximity Error: (Historical - Current) / Std
+        tag_dist_sq = ((temp_df[tag] - curr_val) / std) ** 2
+        total_dist_sq += tag_dist_sq
+
+    temp_df['_proximity_error'] = np.sqrt(total_dist_sq)
+    temp_df = temp_df.sort_values('_proximity_error')
+
+    diverse_results = []
+    # DIVERSITY CHECK: 120 minutes (for the mathematical fallback logic)
+    diversity_minutes = 120
+    ts_col = get_timestamp_col()
+
+    for _, row in temp_df.iterrows():
+        ts = row[ts_col]
+
+        is_diverse = True
+        for existing_ts in diverse_results:
+            if abs((ts - existing_ts).total_seconds()) < (diversity_minutes * 60):
+                is_diverse = False
+                break
+
+        if is_diverse:
+            diverse_results.append(ts)
+
+        if len(diverse_results) >= limit:
+            break
+
+    return temp_df[temp_df[ts_col].isin(diverse_results)].drop(columns=['_proximity_error'])
+
+
 def find_best_fingerprint_advanced(current_real_df_window, historical_df, frontend_strategy, current_state,
                                    weights=None):
     if historical_df.empty or not frontend_strategy: return [], False
@@ -807,28 +860,17 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
     working_history = valid_history.copy()
     final_matches = pd.DataFrame()
 
+    # --- Pruning Phase: Filter history by deviation ---
+    # We strictly filter on both Priority 1 Controls AND P1 Indicators
+    core_tags = conf.get('logic_tags', {}).get('deviation_filter_tags', [])
+    if not core_tags:
+        core_tags = [t for t, c in all_vars_cfg.items() if int(c.get('priority', 3)) == 1]
+
     for phase in search_phases:
         engine_logger.info(f"[SEARCH] Starting Phase: {phase['name']} (Tolerance: {phase['tol'] * 100:.0f}%)")
         phase_history = working_history.copy()
         tol_pct = phase['tol']
 
-        # --- Pruning Phase: Filter history by deviation ---
-        # Optimization: Only filter by "Core" tags during the hard pruning phase.
-        # PER USER OBJECTIVE: Use ONLY Priority 1 Control Variables as strict filters.
-        # This prevents noise in indicator variables (even P1) from disqualifying matches.
-        core_tags = conf.get('logic_tags', {}).get('deviation_filter_tags', [])
-        
-        # SYNC: Auto-inject Priority 1 Indicators for strict process-state alignment
-        if HAS_PROCESS_MODEL:
-            p1_indicators = [t for t, c in process_model.get_indicator_variables().items() if int(c.get('priority', 3)) == 1]
-            for tag in p1_indicators:
-                if tag not in core_tags:
-                    core_tags.append(tag)
-                    
-        if not core_tags:
-            controls_cfg = process_model.get_control_variables() if HAS_PROCESS_MODEL else conf.get('control_variables', {})
-            core_tags = [t for t, c in all_vars_cfg.items() if int(c.get('priority', 3)) == 1 and t in controls_cfg]
-            
         if phase['name'] == 'Standard':
             engine_logger.info(f"[SEARCH] Strict filtering using {len(core_tags)} variables: {core_tags}")
 
@@ -839,7 +881,7 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
             if tag not in core_tags: continue
 
             try:
-                # NEW: Skip Priority 0 variables AND calculated variables from filtering phase per user objective.
+                # NEW: Skip Priority 0 variables AND calculated variables from filtering phase
                 # These are "calculated-only" and should not restrict history search.
                 cfg_var = all_vars_cfg.get(tag, {})
                 prio = int(cfg_var.get('priority', 3))
@@ -871,9 +913,10 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
                 prev_len = len(phase_history)
                 phase_history = phase_history[phase_history[tag].between(eff_min, eff_max)]
                 new_len = len(phase_history)
-                
+
                 if prev_len - new_len > 0:
-                    engine_logger.info(f"[SEARCH] Filter {tag} [{eff_min:.1f}-{eff_max:.1f}]: Removed {prev_len - new_len} rows. Remaining: {new_len}")
+                    engine_logger.info(
+                        f"[SEARCH] Filter {tag} [{eff_min:.1f}-{eff_max:.1f}]: Removed {prev_len - new_len} rows. Remaining: {new_len}")
 
                 if phase_history.empty:
                     # PERSISTENT FILE LOGGING FOR DEBUGGING
@@ -914,8 +957,10 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
     is_fallback = False
     if final_matches.empty:
         is_fallback = True
-        engine_logger.error("[SEARCH] CRITICAL: No matches even in Steering mode. Using Golden dataset as fallback.")
-        final_matches = working_history  # Last resort: absolute closest in entire Golden dataset
+        engine_logger.warning("[SEARCH] Strict filters failed. Triggering Near-Miss Proximity Fallback.")
+        # USE THE MATH FALLBACK INSTEAD OF THE WHOLE DATASET
+        final_matches = find_closest_historical_batches(working_history, current_state, core_tags, limit=50)
+
         # Ensure we have some constraints for scoring even if search failed
         if not active_constraints:
             for tag, strategy in frontend_strategy.items():
@@ -952,8 +997,6 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
         valid_history[ts_col] = pd.to_datetime(valid_history[ts_col], errors='coerce')
 
     # Bug #3 Fix: Compute live directional trends (slopes) from the real-time window
-    # The engine now prefers historical states that were moving in the SAME direction
-    # as the current plant state (e.g., prefer rising-BZT matches when BZT is rising now)
     live_slopes = {}
     try:
         if current_real_df_window is not None and not current_real_df_window.empty:
@@ -965,11 +1008,7 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
     except Exception:
         live_slopes = {}
 
-    # Improvement #3: Direction-Aware Percentile Gap
-    # TSR_MAX hunts toward the 90th percentile (maximize).
-    # SHC_MIN hunts toward the 10th percentile (minimize).
-    # The gap to the target percentile dynamically boosts the weight the further
-    # away you are from the historical optimum — engine hunts harder when more room exists.
+    # Direction-Aware Percentile Gap
     try:
         conf_tmp = get_model_config_safe()
         strategy_name_tmp, strat_tmp = get_active_strategy(conf_tmp)
@@ -1003,14 +1042,12 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
         except Exception:
             past_row = row
 
-        # Bug #1 Fix: Pass active_tags in strict order so u_vec/v_vec dimensions always
-        # match inv_cov. Previously, source_items dict iteration could be in any order.
         return _calculate_core_score(
             row, current_state, None, weights,
             active_constraints=active_constraints,
             inv_cov=inv_cov,
-            live_slopes=live_slopes,  # Bug #3: directional slope vectors
-            active_tags_ordered=active_tags,  # Bug #1: guarantees vector ordering
+            live_slopes=live_slopes,
+            active_tags_ordered=active_tags,
             is_advanced=True,
             past_row=past_row
         )
@@ -1023,22 +1060,14 @@ def find_best_fingerprint_advanced(current_real_df_window, historical_df, fronte
     stable_rows = []
     engine_logger.info(f"OPTIMIZATION: Found {len(df_sorted)} matches.")
 
-    DIVERSITY_MINUTES = 60  # Ensure matches are from distinct historical events
-
     for _, r in df_sorted.iterrows():
         match_ts = r.get(ts_col)
 
-        # 1. Temporal Diversity Check
-        is_diverse = True
-        for existing in stable_rows:
-            existing_ts = existing.get(ts_col)
-            if abs((match_ts - existing_ts).total_seconds()) < (DIVERSITY_MINUTES * 60):
-                is_diverse = False
-                break
+        # DIVERSITY CHECK: 7200 seconds = 120 minutes (for the main loop)
+        if any(abs((match_ts - ext.get(ts_col)).total_seconds()) < 7200 for ext in stable_rows):
+            continue
 
-        if not is_diverse: continue
-
-        # 2. Stability Check
+        # STABILITY CHECK: Only requires 30 minutes survival ahead
         if check_future_stability(historical_df, match_ts):
             stable_rows.append(r)
 
@@ -1159,16 +1188,14 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
     """
     global LAST_AUTO_SCAN_TIME, CACHED_AUTO_RESULT
 
-    sim_pct = 0.0
-    is_fallback = False
-    match_meta = {}
-
     if current_real_df_window.empty: return None
 
     # Consistently initialize to 0.0 at the entry point
     sim_pct = 0.0
+    is_fallback = False
     match_meta = {}
     reason = "Initial Search"
+
     try:
         raw_state = current_real_df_window.iloc[-1].to_dict()
         now = pd.Timestamp.now()
@@ -1227,9 +1254,8 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
 
         dynamic_weights = calculate_dynamic_weights(current_state, base_weights)
 
-        target_vals, target_disp, reason = {}, "Searching...", "Optimized"
-        future_data, top_matches, match_meta = [], [], {}
-        # sim_pct inherited from entry point
+        target_vals, target_disp = {}, "Searching..."
+        future_data, top_matches = [], []
 
         # =========================================================
         # DECISION BLOCK: MANUAL vs AUTO (TIMED)
@@ -1260,7 +1286,7 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
                     for a in data.get('actions', []):
                         target_vals[a['var_name']] = float(a['fingerprint_set_point'])
 
-                    reason = "Manual Target (Engaged)"
+                    reason = "Manual Target"
             except Exception as e:
                 engine_logger.error(f"Manual Context Load Error: {e}")
                 mode = 'AUTO'  # Fallback to auto if file/history read fails
@@ -1282,8 +1308,6 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
 
                     # Calculate numerical similarity (Batch Score)
                     sim_pct = calculate_match_percentage(current_state, best, controls_cfg, indicators_cfg)
-                    if is_fallback:
-                        sim_pct = 0.0
 
                     # Build rich match metadata — operators see WHY this timestamp was selected
                     match_meta = {
@@ -1334,7 +1358,8 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
                             if ctrl_tag in top_5.columns:
                                 valid_ctrls = top_5[ctrl_tag].replace(0, np.nan).dropna()
                                 if not valid_ctrls.empty:
-                                    target_vals_dict[ctrl_tag] = float(valid_ctrls.median()) # Median noise cancellation
+                                    target_vals_dict[ctrl_tag] = float(
+                                        valid_ctrls.median())  # Median noise cancellation
                     except Exception as e:
                         engine_logger.warning(f"[AUTO] Golden Envelope aggregation failed: {e}")
 
@@ -1343,9 +1368,7 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
                     ts_col = get_timestamp_col()
                     for match_row in best_rows[:5]:
                         ts = match_row.get(ts_col)
-                        # FORCED Honest Fallback: if search was a fallback, every match score is 0.0
                         s = calculate_match_percentage(current_state, dict(match_row), controls_cfg, indicators_cfg)
-                        if is_fallback: s = 0.0
                         enriched_matches.append({
                             "timestamp": str(ts),
                             "similarity": round(s, 1)
@@ -1387,12 +1410,10 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
         # This provides the operator with real-time feedback on how far they are from the target.
         if target_vals and 'pure_historical_row' in locals():
             sim_pct = calculate_match_percentage(current_state, pure_historical_row, controls_cfg, indicators_cfg)
-            if is_fallback: sim_pct = 0.0
             if match_meta is not None:
                 match_meta['is_fallback'] = is_fallback
         elif target_vals:
             sim_pct = calculate_match_percentage(current_state, target_vals, controls_cfg, indicators_cfg)
-            if is_fallback: sim_pct = 0.0
             if match_meta is not None:
                 match_meta['similarity_score'] = round(sim_pct, 1)
                 match_meta['is_fallback'] = is_fallback
@@ -1411,7 +1432,7 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
             tgt = align_magnitude(float(target_vals.get(tag, curr)), curr)
 
             # Industrial Nudge Calculation (Centralized utility)
-            gain = abs(float(cfg_var.get('nudge_speed', step_fraction))) # Treated as gain (0.0-1.0)
+            gain = abs(float(cfg_var.get('nudge_speed', step_fraction)))  # Treated as gain (0.0-1.0)
             def_min, def_max = cfg_var.get('default_min', -9999), cfg_var.get('default_max', 9999)
 
             nudged_target = process_model.apply_industrial_nudge(
@@ -1426,7 +1447,7 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
             ui_actions.append({
                 "var_name": tag,
                 "fingerprint_set_point": tgt,  # TRUE unthrottled batch target
-                "nudge_target": nudged_target,   # Throttled absolute step
+                "nudge_target": nudged_target,  # Throttled absolute step
                 "final_target": tgt,
                 "current_setpoint": str(curr),
                 "reason": reason_final
@@ -1457,16 +1478,23 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
 def calculate_deviation_ranges(real_data_series, user_deviation_json):
     """
     Tiered Constraint Architecture:
-    1. strict_ranges: The core process-alignment window (+/- 10%)
+    1. strict_ranges: The core process-alignment window (+/- 10%) - NOW RESTRICTED TO P1 ONLY
     2. user_absolute_ranges: The physical equipment safety limits (clamping)
     3. user_drift_ranges: The relative search window requested by the user
     """
     strict_ranges = {}
     user_absolute_ranges = {}
     user_drift_ranges = {}
-    
+
     deviation_data = user_deviation_json.get("deviation", {})
     engine_logger.info("--- [SCAN] Calculating Tiered Deviation Ranges ---")
+
+    # Load config to check priorities
+    conf = get_model_config_safe()
+    if HAS_PROCESS_MODEL and process_model:
+        all_vars_cfg = {**process_model.get_control_variables(), **process_model.get_indicator_variables()}
+    else:
+        all_vars_cfg = {**conf.get('control_variables', {}), **conf.get('indicator_variables', {})}
 
     # 1. Process User-defined deviations and Absolute Limits
     for key, values in deviation_data.items():
@@ -1474,7 +1502,7 @@ def calculate_deviation_ranges(real_data_series, user_deviation_json):
         try:
             current_value = float(real_data_series.get(key, 0))
             if current_value == 0: continue
-            
+
             # ABSOLUTE LIMITS (Hard Equipment Constraints)
             abs_min = values.get("Min")
             abs_max = values.get("Max")
@@ -1486,14 +1514,22 @@ def calculate_deviation_ranges(real_data_series, user_deviation_json):
             higher_pct = float(values.get("Higher", 120)) / 100.0
             calc_min = current_value * lower_pct
             calc_max = current_value * higher_pct
-            
+
             # Clamp drift by absolute limits
             final_min = float(abs_min) if abs_min is not None and calc_min < float(abs_min) else calc_min
             final_max = float(abs_max) if abs_max is not None and calc_max > float(abs_max) else calc_max
             user_drift_ranges[key] = (final_min, final_max)
-            
-            # Initialize strict ranges with user drift (will be narrowed by P1 injection)
-            strict_ranges[key] = (final_min, final_max)
+
+            # THE FIX: Only allow into strict_ranges if it is Priority 1
+            cfg_var = all_vars_cfg.get(key, {})
+            prio = int(cfg_var.get('priority', 3))
+
+            if prio == 1:
+                strict_ranges[key] = (final_min, final_max)
+                engine_logger.info(f"[SCAN] Priority 1 Control added to strict filter: {key}")
+            else:
+                engine_logger.debug(f"[SCAN] Bypassed strict filter for P{prio} variable: {key}")
+
         except Exception:
             continue
 
@@ -1503,16 +1539,14 @@ def calculate_deviation_ranges(real_data_series, user_deviation_json):
         for name, cfg in indicators.items():
             if int(cfg.get('priority', 3)) == 1:
                 tag = cfg.get('tag_name', name)
-                if tag in real_data_series:
+                if tag in real_data_series and tag not in strict_ranges:
                     try:
                         curr_val = float(real_data_series[tag])
-                        # NEW: Use configurable strict tolerance from logic_tags
-                        conf_tmp = get_model_config_safe()
-                        strict_tol = float(conf_tmp.get('logic_tags', {}).get('strict_search_tolerance', 0.1))
-                        
+                        strict_tol = float(conf.get('logic_tags', {}).get('strict_search_tolerance', 0.1))
+
                         # Enforce a strict process alignment window for P1
                         strict_ranges[tag] = (curr_val * (1 - strict_tol), curr_val * (1 + strict_tol))
-                        engine_logger.info(f"[SCAN] Strict P1 Injection: {tag} [{(1-strict_tol)*100:.0f}% tol]")
+                        engine_logger.info(f"[SCAN] Strict P1 Injection: {tag} [{(1 - strict_tol) * 100:.0f}% tol]")
                     except:
                         pass
 
@@ -1538,56 +1572,6 @@ def filter_historical_by_deviation(historical_df, strict_ranges):
     except Exception as e:
         engine_logger.error(f"Filtering Error: {e}")
         return pd.DataFrame()
-
-
-def find_closest_historical_batches(historical_df, current_state, filter_tags, limit=5):
-    """
-    Near-Miss Fallback: Mathematically finds the closest neighbors when strict filtering fails.
-    Uses normalized error (error / std) to ensure unit-independence.
-    """
-    if historical_df.empty: return pd.DataFrame()
-    engine_logger.info(f"--- [SCAN] Executing Near-Miss Fallback (Normalized Distance) ---")
-    
-    # Pre-calculate distances for the specified tags
-    temp_df = historical_df.copy()
-    total_dist_sq = pd.Series(0.0, index=temp_df.index)
-    
-    valid_tags = [t for t in filter_tags if t in temp_df.columns and t in current_state]
-    if not valid_tags:
-        return temp_df.tail(limit)
-
-    for tag in valid_tags:
-        curr_val = float(current_state[tag])
-        std = temp_df[tag].std()
-        if std == 0 or np.isnan(std): std = 1.0  # Avoid div by zero
-        
-        # Proximity Error: (Historical - Current) / Std
-        tag_dist_sq = ((temp_df[tag] - curr_val) / std) ** 2
-        total_dist_sq += tag_dist_sq
-
-    temp_df['_proximity_error'] = np.sqrt(total_dist_sq)
-    temp_df = temp_df.sort_values('_proximity_error')
-    
-    diverse_results = []
-    diversity_minutes = 120
-    ts_col = get_timestamp_col()
-    
-    for _, row in temp_df.iterrows():
-        ts = row[ts_col]
-        
-        is_diverse = True
-        for existing_ts in diverse_results:
-            if abs((ts - existing_ts).total_seconds()) < (diversity_minutes * 60):
-                is_diverse = False
-                break
-        
-        if is_diverse:
-            diverse_results.append(ts)
-            
-        if len(diverse_results) >= limit:
-            break
-            
-    return temp_df[temp_df[ts_col].isin(diverse_results)]
 
 
 def rank_and_select_recommendations(historical_df, candidates, weights=None, current_state=None, controls_cfg=None,
@@ -1656,7 +1640,7 @@ def rank_and_select_recommendations(historical_df, candidates, weights=None, cur
     df = df.sort_values(by=['score'], ascending=False)
     stable_candidates = []
     unstable_candidates = []
-    
+
     # DIVERSITY CHECK: Ensure matches are at least 120 minutes apart
     diversity_minutes = 120
 
@@ -1670,19 +1654,20 @@ def rank_and_select_recommendations(historical_df, candidates, weights=None, cur
             if abs((ts - existing_ts).total_seconds()) < (diversity_minutes * 60):
                 is_diverse = False
                 break
-        
+
         if not is_diverse:
             continue
 
+        # STABILITY CHECK: Only requires 30 minutes survival ahead
         if check_future_stability(historical_df, ts):
             stable_candidates.append(ts)
             if len(stable_candidates) <= 5:
                 engine_logger.info(f"MATCH #{len(stable_candidates)}: {ts} (Score: {score:.1f}) - Stable: YES")
         else:
             unstable_candidates.append(ts)
-        
+
         if len(stable_candidates) >= 5: break
-    
+
     # If we don't have enough stable/diverse matches, fill with unstable (also respecting diversity)
     if len(stable_candidates) < 5:
         for ts in unstable_candidates:
@@ -1694,7 +1679,7 @@ def rank_and_select_recommendations(historical_df, candidates, weights=None, cur
             if is_diverse:
                 stable_candidates.append(ts)
             if len(stable_candidates) >= 5: break
-            
+
     return stable_candidates[:5]
 
 

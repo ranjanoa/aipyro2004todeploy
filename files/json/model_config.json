@@ -59,7 +59,7 @@
   "control_variables": {
     "Cooler BF fan motor speed": {
       "aipc": true,
-      "default_max": 1050,
+      "default_max": 1500,
       "default_min": 0,
       "description": "Cooler BF fan speed",
       "filtering": {
@@ -151,7 +151,7 @@
       "is_setpoint": true,
       "nudge_speed": 0.1,
       "op_summary": true,
-      "priority": 3,
+      "priority": 4,
       "tag_name": "Dividing gate",
       "unit": "%"
     },
@@ -219,7 +219,7 @@
       "is_setpoint": true,
       "nudge_speed": 0.1,
       "op_summary": true,
-      "priority": 3,
+      "priority": 2,
       "tag_name": "Kiln speed",
       "unit": "rpm"
     },
@@ -236,7 +236,7 @@
       "is_setpoint": true,
       "nudge_speed": 0.1,
       "op_summary": true,
-      "priority": 1,
+      "priority": 2,
       "tag_name": "Petcoke (Kiln)",
       "unit": "t/h"
     },
@@ -253,7 +253,7 @@
       "is_setpoint": true,
       "nudge_speed": 0.1,
       "op_summary": true,
-      "priority": 1,
+      "priority": 2,
       "tag_name": "Petcoke (PC)",
       "unit": "t/h"
     },
@@ -389,7 +389,7 @@
   },
   "golden_prefilter": {
     "CO (kiln)": {
-      "max": 0.5
+      "max": 1.5
     },
     "Free CaO": {
       "max": 2
@@ -403,11 +403,11 @@
     },
     "Kiln motor 1 Amps": {
       "max": 320,
-      "min": 260
+      "min": 220
     },
     "O2 (Kiln)": {
       "max": 5,
-      "min": 1.5
+      "min": 0.5
     },
     "comment": "Professional Stability Envelope: Pre-filter applied BEFORE fingerprint search. Excludes startups, cold kilns, and reducing environments. Ensures AI only learns from 'High Efficiency' historical periods."
   },
@@ -706,7 +706,7 @@
     },
     "CO (kiln)": {
       "default_max": 2.17,
-      "default_min": -4.1,
+      "default_min": 0,
       "filtering": {
         "ema_alpha": 0.2,
         "enabled": true,
@@ -715,7 +715,7 @@
       "nudge_speed": 0.05,
       "op_summary": true,
       "position": 10,
-      "priority": 3,
+      "priority": 2,
       "tag_name": "CO (kiln)"
     },
     "Ck production": {
@@ -1205,7 +1205,7 @@
       "nudge_speed": 0.05,
       "op_summary": true,
       "position": 13,
-      "priority": 3,
+      "priority": 2,
       "tag_name": "O2 (Kiln)"
     },
     "PC outlet T1": {
@@ -1722,8 +1722,8 @@
     "stability_lookahead": 30,
     "stability_tags": [],
     "std_search_tolerance": 0.15,
-    "strict_search_tolerance": 0.15,
-    "strict_filter_priority": 1
+    "strict_filter_priority": 1,
+    "strict_search_tolerance": 0.15
   },
   "model_name": "Cimpor Kiln 3 - Working Names Restored V22.0",
   "nudge_settings": {
