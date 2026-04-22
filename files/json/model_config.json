@@ -1488,7 +1488,7 @@
         "median_window": 3
       },
       "nudge_speed": 0.05,
-      "priority": 1,
+      "priority": -3,
       "tag_name": "Raw Mill (ON/OFF)"
     },
     "Riser chamber P": {
