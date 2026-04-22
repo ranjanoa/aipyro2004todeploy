@@ -1,7 +1,7 @@
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="eventlet")
 import eventlet
 eventlet.monkey_patch()
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="eventlet")
 import os
 import pandas as pd
 import sys

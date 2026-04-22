@@ -1195,11 +1195,14 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
                 # INJECT P1 INDICATORS for strict filtering phase
                 for k, v in indicators_cfg.items():
                     if int(v.get('priority', 3)) == 1:
+                        # NEW: Use configurable strict tolerance from logic_tags
+                        conf_tmp = get_model_config_safe()
+                        strict_tol_pct = float(conf_tmp.get('logic_tags', {}).get('strict_search_tolerance', 0.1)) * 100
                         frontend_strategy[k] = {
                             "priority": 1,
                             "min": float(v.get('default_min', -9e9)),
                             "max": float(v.get('default_max', 9e9)),
-                            "tolerance_pct": 10  # Strict 10% for indicators
+                            "tolerance_pct": strict_tol_pct
                         }
         else:
             controls_cfg = getattr(config, 'control_variables', {}) if config else {}
@@ -1503,9 +1506,13 @@ def calculate_deviation_ranges(real_data_series, user_deviation_json):
                 if tag in real_data_series:
                     try:
                         curr_val = float(real_data_series[tag])
-                        # Enforce a strict +/- 10% process alignment window for P1
-                        strict_ranges[tag] = (curr_val * 0.90, curr_val * 1.10)
-                        engine_logger.info(f"[SCAN] Strict P1 Injection: {tag} [{curr_val*0.9:.1f}-{curr_val*1.1:.1f}]")
+                        # NEW: Use configurable strict tolerance from logic_tags
+                        conf_tmp = get_model_config_safe()
+                        strict_tol = float(conf_tmp.get('logic_tags', {}).get('strict_search_tolerance', 0.1))
+                        
+                        # Enforce a strict process alignment window for P1
+                        strict_ranges[tag] = (curr_val * (1 - strict_tol), curr_val * (1 + strict_tol))
+                        engine_logger.info(f"[SCAN] Strict P1 Injection: {tag} [{(1-strict_tol)*100:.0f}% tol]")
                     except:
                         pass
 

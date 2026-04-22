@@ -1721,7 +1721,8 @@
     ],
     "stability_lookahead": 30,
     "stability_tags": [],
-    "std_search_tolerance": 0.1,
+    "std_search_tolerance": 0.15,
+    "strict_search_tolerance": 0.15,
     "strict_filter_priority": 1
   },
   "model_name": "Cimpor Kiln 3 - Working Names Restored V22.0",
