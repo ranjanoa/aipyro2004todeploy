@@ -233,12 +233,14 @@ def automated_control_loop():
     # SAFETY THRESHOLD (Adjust as needed)
     MAX_DATA_DELAY_SECONDS = 120
 
-    # Physics Buffer for Heat Balance back-calculation (30 mins of history)
     _physics_buffer = {
         "bzt": [],
         "fuel": [],
         "timestamps": []
     }
+
+    # PERSISTENCE TIMER: Tracks how long scores have been below threshold
+    _low_trust_timer = 0
 
     # Persistent storage for recommendation to ensure UI stays updated 
     # even between 30-second AI optimization cycles.
@@ -528,16 +530,15 @@ def automated_control_loop():
 
                             # --- SYSTEM TRUST CALCULATION ---
                             if trust_cfg.get('enabled', True):
-                                trust_bit = 0
+                                # 1. Determine "Instant" Trust (is the current state good?)
+                                instant_trust = 0
                                 strategy = recommendation.get('active_strategy', 'BALANCED')
                                 
-                                # 1. Upset override (highest priority)
+                                # Upset override (highest priority) - always trustworthy if configured
                                 if recommendation.get('upset_active'):
-                                    trust_bit = trust_cfg.get('behavior', {}).get('upset_trust', 1)
+                                    instant_trust = trust_cfg.get('behavior', {}).get('upset_trust', 1)
                                 
-                                # 2. Mode-aware logic (Toggle logic)
                                 else:
-                                    # Extract scores safely (Use match_score directly for the most reliable trust check)
                                     try:
                                         fp_score = float(recommendation.get('match_score', 0))
                                     except (ValueError, TypeError):
@@ -549,16 +550,35 @@ def automated_control_loop():
                                     ai_limit = trust_thresholds.get('ai', 80.0)
 
                                     if strategy == "FINGERPRINT":
-                                        if fp_score >= fp_limit: trust_bit = 1
+                                        if fp_score >= fp_limit: instant_trust = 1
                                     elif strategy == "AI":
-                                        if nn_score >= ai_limit: trust_bit = 1
+                                        if nn_score >= ai_limit: instant_trust = 1
                                     elif strategy == "HYBRID":
-                                        # Trust if EITHER the Fingerprint match OR AI confidence is high
                                         if fp_score >= fp_limit or nn_score >= ai_limit:
-                                            trust_bit = 1
+                                            instant_trust = 1
+
+                                # 2. Apply Persistence Timer (Debounce)
+                                persistence_limit = trust_cfg.get('persistence_sec', 60)
                                 
-                                setpoints['AI_SYSTEM_TRUST'] = trust_bit
-                                recommendation['system_trust'] = trust_bit
+                                if instant_trust == 1:
+                                    # RECOVERY: Score is good, restore trust immediately
+                                    _low_trust_timer = 0
+                                    final_trust_bit = 1
+                                else:
+                                    # DEGRADATION: Score is bad, increment timer
+                                    _low_trust_timer += AI_INTERVAL_SECONDS
+                                    
+                                    # If we haven't hit the time limit yet, keep trust at 1
+                                    if _low_trust_timer < persistence_limit:
+                                        final_trust_bit = 1
+                                        logger.info(f"[TRUST-TIMER] Score low ({fp_score:.1f}%). Revoking trust in {persistence_limit - _low_trust_timer}s...")
+                                    else:
+                                        final_trust_bit = 0
+                                        if _low_trust_timer == persistence_limit:
+                                            logger.warning(f"[TRUST-REVOKED] Score low for >={persistence_limit}s. Trust set to 0.")
+                                
+                                setpoints['AI_SYSTEM_TRUST'] = final_trust_bit
+                                recommendation['system_trust'] = final_trust_bit
 
                             # --- PROCESS INSIGHT GENERATION ---
                             insights = []

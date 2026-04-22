@@ -2144,7 +2144,8 @@
       "ai": 70,
       "fingerprint": 50,
       "hybrid_bias": 20
-    }
+    },
+    "persistence_sec": 60
   },
   "upset_conditions": {
     "cooler_grate_c1_stop": {
