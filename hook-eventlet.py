@@ -1,4 +1,8 @@
+import sys
 import eventlet
+if 'threading' in sys.modules:
+    # Diagnostic to see who imported threading
+    pass 
 # CRITICAL: Monkey patch must happen before ANY other imports to green threading.RLock
 eventlet.monkey_patch(all=True)
 import dns
