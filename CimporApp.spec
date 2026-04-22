@@ -26,7 +26,7 @@ a = Analysis(
     ] + dns_submodules + eventlet_submodules,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['hook-eventlet.py'],
     excludes=['files'],
     noarchive=False,
 )
