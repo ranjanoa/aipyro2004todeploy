@@ -285,15 +285,26 @@ def automated_control_loop():
             if is_stalled:
                 # 1. Tell PLC we are OFF (Safety), even if internally engaged
                 plc_status_code = 0
+                
+                # 2. Force Trust to 0 (Internal Interlock)
+                recommendation['system_trust'] = 0
 
-                # 2. Update UI to show "PAUSED" state, but do NOT disengage config.CONTROL_MODE
+                # 3. Update UI to show "PAUSED" state and zero trust
                 if current_mode > 0 and loop_counter == 0:
                     logger.warning("[PAUSE] SYSTEM PAUSED: Waiting for data connectivity...")
                     socketio.emit('autopilot_update', {
                         "match_score": "SYSTEM-PAUSED",
+                        "system_trust": 0,
                         "actions": [],
                         "reason": "Data Connection Lost - Retrying..."
                     })
+                    
+                    # Record the loss of trust in the DB so logs are accurate
+                    try:
+                        setpoint_map = process_model.get_setpoint_tag_map()
+                        database.write_setpoints(datetime.utcnow(), {'AI_SYSTEM_TRUST': 0}, setpoint_map, {})
+                    except:
+                        pass
             else:
                 # Data is fresh, send actual mode to PLC (1 or 2)
                 plc_status_code = current_mode
