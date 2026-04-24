@@ -1408,15 +1408,17 @@ def get_live_fingerprint_action(current_real_df_window, frontend_strategy=None):
 
         # ARCHIVAL FIX: Always calculate similarity score, even for MANUAL targets.
         # This provides the operator with real-time feedback on how far they are from the target.
-        if target_vals and 'pure_historical_row' in locals():
-            sim_pct = calculate_match_percentage(current_state, pure_historical_row, controls_cfg, indicators_cfg)
-            if match_meta is not None:
-                match_meta['is_fallback'] = is_fallback
-        elif target_vals:
-            sim_pct = calculate_match_percentage(current_state, target_vals, controls_cfg, indicators_cfg)
-            if match_meta is not None:
-                match_meta['similarity_score'] = round(sim_pct, 1)
-                match_meta['is_fallback'] = is_fallback
+        # USER REQUEST (2026-04-24): For AUTO mode, retain the scan similarity; don't recalculate live.
+        if mode != 'AUTO':
+            if target_vals and 'pure_historical_row' in locals():
+                sim_pct = calculate_match_percentage(current_state, pure_historical_row, controls_cfg, indicators_cfg)
+                if match_meta is not None:
+                    match_meta['is_fallback'] = is_fallback
+            elif target_vals:
+                sim_pct = calculate_match_percentage(current_state, target_vals, controls_cfg, indicators_cfg)
+                if match_meta is not None:
+                    match_meta['similarity_score'] = round(sim_pct, 1)
+                    match_meta['is_fallback'] = is_fallback
 
         # =========================================================
         # CONTROL LOOP — Nudge calculation, fully config-driven
